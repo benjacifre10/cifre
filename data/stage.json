@@ -1,0 +1,29 @@
+{
+  "stages": [
+    {
+      "id": "244f483b-1128-4097-9058-a4a5d37fd3d5",
+      "name": "Dev",
+      "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6"
+    },
+    {
+      "id": "a043c588-630e-4be1-b628-4e260f03bc95",
+      "name": "Qa",
+      "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6"
+    },
+    {
+      "id": "960cd067-0fab-4c99-9eec-08c1abd3e9ef",
+      "name": "Beta",
+      "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6"
+    },
+    {
+      "id": "4882c848-c899-409d-be9f-3b764acbcf6c",
+      "name": "Prod",
+      "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6"
+    },
+    {
+      "id": "ecdc00b1-3559-4d1a-8a83-1f8bdf0b419a",
+      "name": "BrSq",
+      "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6"
+    }
+  ]
+}

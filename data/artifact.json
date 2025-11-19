@@ -1,0 +1,59 @@
+{
+  "artifacts": [
+    {
+      "id": "d1713a0f-4e81-4498-a21a-60e971abe1d1",
+      "name": "authority-service",
+      "artifact_type_id": 1
+    },
+    {
+      "id": "f6ebeeea-a88d-4773-92f2-82ee968e2688",
+      "name": "bff-auth",
+      "artifact_type_id": 5
+    },
+    {
+      "id": "28d69d74-bc93-4ad9-986c-261ce2057517",
+      "name": "unlock-service",
+      "artifact_type_id": 1
+    },
+    {
+      "id": "d5e8fd40-85f4-4791-a78e-7c6ff0480501",
+      "name": "bff-unlock",
+      "artifact_type_id": 5
+    },
+    {
+      "id": "127b0d74-df9c-4bb3-ad5d-b33f3ffbce84",
+      "name": "authority-db",
+      "artifact_type_id": 3
+    },
+    {
+      "id": "d8a76978-c8e9-491c-b4ad-273f82227cc1",
+      "name": "mfa-auth-db",
+      "artifact_type_id": 3
+    },
+    {
+      "id": "d5221cc6-b06c-4e6d-a936-043a78de603d",
+      "name": "mfa-auth-service",
+      "artifact_type_id": 1
+    },
+    {
+      "id": "54655507-87ea-4d3b-886a-80adfda3c6e8",
+      "name": "bff-mfa",
+      "artifact_type_id": 5
+    },
+    {
+      "id": "d2a3fbfd-a4fd-4dd0-8a97-466e493af2ab",
+      "name": "mobile-app-react-native",
+      "artifact_type_id": 4
+    },
+    {
+      "id": "f0b8b516-9f58-4a8c-b7d5-c3f5b2784ff6",
+      "name": "core-fraud-service",
+      "artifact_type_id": 1
+    },
+    {
+      "id": "83cc48c0-c502-4e9c-8fc5-e6c82ac01ab3",
+      "name": "core-fraud-db",
+      "artifact_type_id": 3
+    }
+  ]
+}

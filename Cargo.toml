@@ -1,0 +1,23 @@
+[package]
+name = "cifre"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Backend para Ratatui para la interacción con la terminal
+crossterm = { version = "0.27", features = ["event-stream", "serde"] }
+
+# Framework para construir TUI (Terminal User Interface)
+ratatui = { version = "0.26", features = ["all-widgets", "macros"] }
+
+# Para serializar/deserializar datos (especialmente JSON)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Para manejo de errores
+anyhow = "1.0" # Un tipo de error más ergonómico
+
+chrono = "0.4" # Para manejar fechas y horas
+
+# Para generar UUIDs únicos
+uuid = { version = "1.0", features = ["v4", "serde"] }

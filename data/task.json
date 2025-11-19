@@ -1,0 +1,123 @@
+[
+  {
+    "id": "d70d0400-3506-4f95-b0bf-357d689dce51",
+    "name": "Revisar metricas mfa",
+    "description": "Falta ver como implementar las nuevas con los tags en dyna",
+    "state": "pending",
+    "priority": "medium",
+    "tag": "work",
+    "creation_date": "2025-11-06",
+    "finish_date": "2025-11-10",
+    "alert": true
+  },
+  {
+    "id": "1090d2c2-942d-42f8-8e85-f1428ceafdce",
+    "name": "Generar task para crear base de datos Core-fraud",
+    "description": "falta definir nombre. core-fraud-db",
+    "state": "done",
+    "priority": "medium",
+    "tag": "work",
+    "creation_date": "2025-11-06",
+    "finish_date": "2025-11-07",
+    "alert": true
+  },
+  {
+    "id": "9d8c40e3-359c-44d3-883d-23d5864a4090",
+    "name": "Generar tablero de login",
+    "description": "Esto en dyna. Ver con los chicos. Hablar con gonza por grafana productivo",
+    "state": "done",
+    "priority": "high",
+    "tag": "work",
+    "creation_date": "2025-11-06",
+    "finish_date": "2025-11-07",
+    "alert": true
+  },
+  {
+    "id": "3a85718e-e6ec-4b3b-b5c1-508b8f05fff8",
+    "name": "Crear tareas paygilant",
+    "description": "Tomar el excalidraw. Y ejecutar tareas y documentacion asociada",
+    "state": "done",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-11-06",
+    "finish_date": "2025-11-06",
+    "alert": true
+  },
+  {
+    "id": "23612f9b-2ef5-44e4-8e64-15a5a54f1482",
+    "name": "Preparar paytalk sobre MFA y Paygilant",
+    "description": "Seria describir y ejemplificar todas las casuisticas. Para poder implementarlo",
+    "state": "pending",
+    "priority": "low",
+    "tag": "work",
+    "creation_date": "2025-11-07",
+    "finish_date": "2025-11-27",
+    "alert": true
+  },
+  {
+    "id": "db14e310-0566-455e-ae57-1ec78c120c5c",
+    "name": "Documentacion Paygilant Implementacion y Mfa",
+    "description": "Esto es para el final del Release para entregar el core de fraude",
+    "state": "done",
+    "priority": "low",
+    "tag": "work",
+    "creation_date": "2025-11-07",
+    "finish_date": "2025-11-22",
+    "alert": true
+  },
+  {
+    "id": "38042469-69a4-45df-9cba-1c35517b5f00",
+    "name": "Pagar impuestos estrada",
+    "description": "",
+    "state": "done",
+    "priority": "critical",
+    "tag": "personal",
+    "creation_date": "2025-11-10",
+    "finish_date": "2025-11-10",
+    "alert": true
+  },
+  {
+    "id": "29c26e7c-fa29-4d39-a74d-8699a23603a2",
+    "name": "Prender login v4",
+    "description": "Ir prendiendo cada 5% por dia",
+    "state": "progress",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-11-10",
+    "finish_date": "2025-12-01",
+    "alert": true
+  },
+  {
+    "id": "486b09ed-8a66-407a-8a4e-6e107845e29c",
+    "name": "Generar info sobre flujo backend",
+    "description": "",
+    "state": "progress",
+    "priority": "low",
+    "tag": "personal",
+    "creation_date": "2025-11-14",
+    "finish_date": "",
+    "alert": false
+  },
+  {
+    "id": "2cbbe878-4d25-4068-bf54-b17c91d11305",
+    "name": "Buscar apikey paygilant produccion",
+    "description": "ver con cs, para buscar este dato productivo, en los otros servicios (ecosistemas-transaction-",
+    "state": "pending",
+    "priority": "high",
+    "tag": "work",
+    "creation_date": "2025-11-17",
+    "finish_date": "2025-11-18",
+    "alert": true
+  },
+  {
+    "id": "5b85c894-82fb-40ef-93f7-f0ac7b230492",
+    "name": "Revisar core-fraud-db",
+    "description": "la subida a dev esta fallando por una autenticacion en el pipeline",
+    "state": "pending",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-11-17",
+    "finish_date": "2025-11-18",
+    "alert": true
+  }
+]
