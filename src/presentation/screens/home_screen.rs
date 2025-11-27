@@ -268,9 +268,16 @@ impl HomeScreen {
             Style::default()
         };
 
+        let versions_style = if self.checks_focused && self.selected_item == 2 {
+            Style::default().bg(Color::Yellow).fg(Color::Black)
+        } else {
+            Style::default()
+        };
+
         let content = Text::from(vec![
             Line::from(Span::styled("Todo", todo_style)),
             Line::from(Span::styled("Releases", releases_style)),
+            Line::from(Span::styled("Versions", versions_style)),
         ]);
 
         let paragraph = Paragraph::new(content)
@@ -317,7 +324,7 @@ impl HomeScreen {
         };
 
         let content = Text::from(vec![
-            Line::from(""),
+            // Line::from(""),
             Line::from(Span::styled("posting", posting_style)),
             Line::from(Span::styled("glances", glances_style)),
             Line::from(Span::styled("harlequin", harlequin_style)),
@@ -424,7 +431,7 @@ impl Screen for HomeScreen {
                     Ok(ScreenOutcome::Continue)
                 }
                 crossterm::event::KeyCode::Char('j') => {
-                    if self.checks_focused && self.selected_item < 1 {
+                    if self.checks_focused && self.selected_item < 2 {
                         self.selected_item += 1;
                     } else if self.tools_focused && self.selected_tool < 3 {
                         self.selected_tool += 1;
@@ -444,6 +451,7 @@ impl Screen for HomeScreen {
                         match self.selected_item {
                             0 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingTodo)),
                             1 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingReleases)),
+                            2 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingVersions)),
                             _ => Ok(ScreenOutcome::Continue),
                         }
                     } else if self.notifications_focused {
@@ -534,12 +542,12 @@ impl Screen for HomeScreen {
 
         let checks_vertical = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(4)])
+            .constraints([Constraint::Length(5)])
             .split(checks_area);
 
         let tools_vertical = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(8)])
+            .constraints([Constraint::Length(6)])
             .split(tools_area);
 
         let date_vertical = Layout::default()

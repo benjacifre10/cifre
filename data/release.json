@@ -52,13 +52,13 @@
           "artifact_id": "d5e8fd40-85f4-4791-a78e-7c6ff0480501",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
           "stage_id": "a043c588-630e-4be1-b628-4e260f03bc95",
-          "version": "1.6.2"
+          "version": "1.6.5"
         },
         {
           "artifact_id": "f6ebeeea-a88d-4773-92f2-82ee968e2688",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
           "stage_id": "a043c588-630e-4be1-b628-4e260f03bc95",
-          "version": "0.6.2"
+          "version": "0.6.3"
         },
         {
           "artifact_id": "28d69d74-bc93-4ad9-986c-261ce2057517",
@@ -70,7 +70,7 @@
           "artifact_id": "d1713a0f-4e81-4498-a21a-60e971abe1d1",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
           "stage_id": "a043c588-630e-4be1-b628-4e260f03bc95",
-          "version": "2.24.9"
+          "version": "2.24.10"
         },
         {
           "artifact_id": "54655507-87ea-4d3b-886a-80adfda3c6e8",
@@ -82,15 +82,39 @@
           "artifact_id": "f0b8b516-9f58-4a8c-b7d5-c3f5b2784ff6",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
           "stage_id": "a043c588-630e-4be1-b628-4e260f03bc95",
-          "version": "1.3.3"
+          "version": "1.3.4"
         },
         {
           "artifact_id": "83cc48c0-c502-4e9c-8fc5-e6c82ac01ab3",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
           "stage_id": "244f483b-1128-4097-9058-a4a5d37fd3d5",
           "version": "1.0.0"
+        },
+        {
+          "artifact_id": "269141c5-3cfb-443b-9b60-22e454e374e2",
+          "country_id": "8aff7c27-6431-48b1-85b5-accdb824f678",
+          "stage_id": "a043c588-630e-4be1-b628-4e260f03bc95",
+          "version": "1.0.38"
         }
       ]
+    },
+    {
+      "id": "8e2c66e7-8c4b-410b-a090-741fb8c9cf17",
+      "name": "Release 7",
+      "year": 2025,
+      "date_init": "2025-11-19",
+      "date_qa": "2025-12-03",
+      "date_finish": "2025-12-15",
+      "artifacts": []
+    },
+    {
+      "id": "fd53b6ed-f942-46f7-99b0-c634a9d115d2",
+      "name": "Release 8",
+      "year": 2025,
+      "date_init": "2025-12-03",
+      "date_qa": "2026-01-02",
+      "date_finish": "2026-01-13",
+      "artifacts": []
     }
   ]
 }

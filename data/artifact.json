@@ -54,6 +54,11 @@
       "id": "83cc48c0-c502-4e9c-8fc5-e6c82ac01ab3",
       "name": "core-fraud-db",
       "artifact_type_id": 3
+    },
+    {
+      "id": "269141c5-3cfb-443b-9b60-22e454e374e2",
+      "name": "authorizer-lambda",
+      "artifact_type_id": 2
     }
   ]
 }

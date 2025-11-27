@@ -199,7 +199,8 @@ impl SettingsScreen {
             .border_style(Style::default().fg(color))
             .title(Span::styled(title, Style::default().fg(color)));
 
-        let paragraph = Paragraph::new(Line::from(&self.notification_message))
+        // let paragraph = Paragraph::new(Line::from(&self.notification_message))
+        let paragraph = Paragraph::new(Line::from(self.notification_message.as_str()))
             .alignment(Alignment::Center)
             .block(block);
 

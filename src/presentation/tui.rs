@@ -1,6 +1,6 @@
 // cifre/src/presentation/tui.rs
 use crate::presentation::screens::home_screen::HomeScreen;
-use crate::presentation::screens::checks_screen::ChecksScreen;
+use crate::presentation::screens::versions_screen::VersionsScreen;
 use crate::presentation::screens::todo_screen::TodoScreen;
 use crate::presentation::screens::releases_screen::ReleasesScreen;
 use crate::presentation::screens::settings_screen::SettingsScreen;
@@ -28,7 +28,7 @@ use super::screens::{
 #[derive(Debug, Clone, PartialEq, Eq, Hash)] // Derivamos Hash para usarlo como clave en HashMap
 pub enum AppState {
     Home,
-    ViewingChecks,
+    ViewingVersions,
     ViewingTodo,
     ViewingReleases,
     ViewingSettings,
@@ -93,7 +93,7 @@ impl App {
                                         AllScreens::Home(HomeScreen::new()?)
                                     }
                                 },
-                                AppState::ViewingChecks => AllScreens::Checks(ChecksScreen::new()),
+                                AppState::ViewingVersions => AllScreens::Versions(VersionsScreen::new()),
                                 AppState::ViewingTodo => AllScreens::Todo(TodoScreen::new()),
                                 AppState::ViewingReleases => AllScreens::Releases(ReleasesScreen::new()),
                                 AppState::ViewingSettings => AllScreens::Settings(SettingsScreen::new()),

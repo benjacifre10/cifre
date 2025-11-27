@@ -47,8 +47,8 @@
     "id": "23612f9b-2ef5-44e4-8e64-15a5a54f1482",
     "name": "Preparar paytalk sobre MFA y Paygilant",
     "description": "Seria describir y ejemplificar todas las casuisticas. Para poder implementarlo",
-    "state": "pending",
-    "priority": "low",
+    "state": "progress",
+    "priority": "medium",
     "tag": "work",
     "creation_date": "2025-11-07",
     "finish_date": "2025-11-27",
@@ -91,7 +91,7 @@
     "id": "486b09ed-8a66-407a-8a4e-6e107845e29c",
     "name": "Generar info sobre flujo backend",
     "description": "",
-    "state": "progress",
+    "state": "block",
     "priority": "low",
     "tag": "personal",
     "creation_date": "2025-11-14",
@@ -118,6 +118,39 @@
     "tag": "work",
     "creation_date": "2025-11-17",
     "finish_date": "2025-11-18",
+    "alert": true
+  },
+  {
+    "id": "0f5ee105-de42-48a7-b94f-1580569cbf8d",
+    "name": "Cambiar authorizer-lambda en py",
+    "description": "cambiar testing por uat",
+    "state": "done",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-11-25",
+    "finish_date": "2025-11-25",
+    "alert": true
+  },
+  {
+    "id": "ddaf9b1f-64a3-4d5d-a4a7-c4d9c092dbf1",
+    "name": "Agregar apigw py",
+    "description": "logout en todos los ambientes",
+    "state": "progress",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-11-25",
+    "finish_date": "2025-11-25",
+    "alert": true
+  },
+  {
+    "id": "bcc4a92f-ac59-4c30-a50b-82f507df95b3",
+    "name": "hablar con esteban core-fraud",
+    "description": "sdk y cambios en prod",
+    "state": "done",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-11-25",
+    "finish_date": "2025-11-25",
     "alert": true
   }
 ]

@@ -2,6 +2,7 @@
 mod domain;
 mod infrastructure;
 mod presentation;
+mod application;
 
 // Hacemos AppState público para que sea accesible desde las pantallas
 pub use presentation::tui::AppState;
