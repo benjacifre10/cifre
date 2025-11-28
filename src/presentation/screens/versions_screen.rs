@@ -71,7 +71,8 @@ impl VersionsScreen {
         };
 
         match screen_instance.versions_service.read_versions_from_json() {
-            Ok(data) => {
+            Ok(mut data) => { // 'mut data' porque vamos a ordenar
+                data.sort_by(|a, b| a.name.cmp(&b.name)); // <--- APLICAR ORDENACIÓN AQUÍ
                 screen_instance.versions_artifact_data = data;
                 // Asegurarse de que selected_repo esté dentro de los límites si hay datos
                 if !screen_instance.versions_artifact_data.is_empty() {
@@ -120,7 +121,7 @@ impl VersionsScreen {
 
             let callback = move |current_step: usize, msg: Option<String>, err_msg: Option<String>| {
                 let num_repos = fs::read_dir(&service_in_thread_for_callback.base_path).map(|dir| dir.count()).unwrap_or(0);
-                let num_branches = 4;
+                let num_branches = 3; // CAMBIO: Ahora son 3 ramas (dev, release, prod)
                 let total_steps = num_repos * num_branches;
 
                 if total_steps > 0 {
@@ -157,7 +158,8 @@ impl VersionsScreen {
                     },
                     GenerationMessage::Completed(result) => {
                         match result {
-                            Ok(data) => {
+                            Ok(mut data) => { // 'mut data' porque vamos a ordenar
+                                data.sort_by(|a, b| a.name.cmp(&b.name)); // <--- APLICAR ORDENACIÓN AQUÍ
                                 self.versions_artifact_data = data;
                                 self.generation_state = GenerationState::Completed;
                                 // Asegurarse de que selected_repo esté dentro de los límites después de la generación
@@ -183,7 +185,6 @@ impl VersionsScreen {
         }
     }
 }
-
 
 impl Screen for VersionsScreen {
     fn handle_key_event(&mut self, key: crossterm::event::KeyEvent) -> Result<ScreenOutcome> {
@@ -275,7 +276,7 @@ impl Screen for VersionsScreen {
                 f.render_widget(no_repos_paragraph, inner_content_area);
             } else {
                 let header_style = Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD).bg(Color::DarkGray);
-                let header_cells = ["Repository", "dev", "qa", "beta", "prod"]
+                let header_cells = ["Repository", "dev", "release_status", "prod"] // CAMBIO: Encabezados actualizados
                     .iter()
                     .map(|h| Cell::from(*h).style(header_style));
 
@@ -305,8 +306,7 @@ impl Screen for VersionsScreen {
                         let cells = vec![
                             Cell::from(repo.name.clone()),
                             Cell::from(repo.dev_version.clone()),
-                            Cell::from(repo.qa_version.clone()),
-                            Cell::from(repo.beta_version.clone()),
+                            Cell::from(repo.release_version.clone()), // CAMBIO: Mostrar release_version (que ahora es el estado)
                             Cell::from(repo.prod_version.clone()),
                         ];
                         Row::new(cells)
@@ -317,12 +317,10 @@ impl Screen for VersionsScreen {
 
 
                 let table = Table::new(rows, [
-                    Constraint::Percentage(30),
-                    Constraint::Percentage(15),
-                    Constraint::Percentage(15),
-                    Constraint::Percentage(15),
-                    Constraint::Percentage(15),
-                    Constraint::Min(10), // Un Constraint extra para que no se apriete demasiado
+                    Constraint::Percentage(25), // Repository
+                    Constraint::Percentage(25), // dev
+                    Constraint::Percentage(25), // release_status
+                    Constraint::Percentage(25), // prod
                 ])
                 .header(header)
                 .block(

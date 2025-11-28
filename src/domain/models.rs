@@ -59,13 +59,20 @@ pub struct Release {
     pub artifacts: Vec<ReleaseArtifact>, // Vector de objetos ReleaseArtifact
 }
 
+// #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+// pub struct VersionsArtifact {
+//     pub name: String,
+//     pub dev_version: String,
+//     pub qa_version: String,
+//     pub beta_version: String,
+//     pub prod_version: String,
+// }
+
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VersionsArtifact {
     pub name: String,
     pub dev_version: String,
-    pub qa_version: String,
-    pub beta_version: String,
+    pub release_version: String,
     pub prod_version: String,
 }
-
 
