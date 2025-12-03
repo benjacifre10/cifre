@@ -80,7 +80,7 @@
     "id": "29c26e7c-fa29-4d39-a74d-8699a23603a2",
     "name": "Prender login v4",
     "description": "Ir prendiendo cada 5% por dia",
-    "state": "progress",
+    "state": "done",
     "priority": "critical",
     "tag": "work",
     "creation_date": "2025-11-10",
@@ -102,18 +102,18 @@
     "id": "2cbbe878-4d25-4068-bf54-b17c91d11305",
     "name": "Buscar apikey paygilant produccion",
     "description": "ver con cs, para buscar este dato productivo, en los otros servicios (ecosistemas-transaction-",
-    "state": "pending",
+    "state": "progress",
     "priority": "high",
     "tag": "work",
     "creation_date": "2025-11-17",
-    "finish_date": "2025-11-18",
+    "finish_date": "2025-12-03",
     "alert": true
   },
   {
     "id": "5b85c894-82fb-40ef-93f7-f0ac7b230492",
     "name": "Revisar core-fraud-db",
     "description": "la subida a dev esta fallando por una autenticacion en el pipeline",
-    "state": "pending",
+    "state": "progress",
     "priority": "critical",
     "tag": "work",
     "creation_date": "2025-11-17",
@@ -151,6 +151,39 @@
     "tag": "work",
     "creation_date": "2025-11-25",
     "finish_date": "2025-11-25",
+    "alert": true
+  },
+  {
+    "id": "f4824f52-d93a-461e-81fa-b4ca09342770",
+    "name": "Revisar alarmas de login v2 a v4",
+    "description": "Las alarmas estan apagadas, pero hay que activarlas con el SLA, apuntando a la nva version",
+    "state": "pending",
+    "priority": "medium",
+    "tag": "work",
+    "creation_date": "2025-11-28",
+    "finish_date": "2025-12-05",
+    "alert": false
+  },
+  {
+    "id": "f61c7a3b-50af-459f-89f8-0800d657ce31",
+    "name": "Temas de charli y tincho",
+    "description": "conf sqlautomation, apigw paygilant, user corefrauddb, con tinchodba total clientes vs users",
+    "state": "progress",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-11-28",
+    "finish_date": "2025-11-28",
+    "alert": true
+  },
+  {
+    "id": "e88b0ec3-bab9-428b-a19d-e32ec4f1f0f7",
+    "name": "Ver con flor mariani extension session idp a 12hs",
+    "description": "avisarle para que proceda con el cambio",
+    "state": "progress",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-12-02",
+    "finish_date": "2025-12-03",
     "alert": true
   }
 ]

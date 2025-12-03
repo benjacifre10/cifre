@@ -276,7 +276,7 @@ impl Screen for VersionsScreen {
                 f.render_widget(no_repos_paragraph, inner_content_area);
             } else {
                 let header_style = Style::default().fg(Color::LightCyan).add_modifier(Modifier::BOLD).bg(Color::DarkGray);
-                let header_cells = ["Repository", "dev", "release_status", "prod"] // CAMBIO: Encabezados actualizados
+                let header_cells = ["Repository", "dev", "release", "prod"] // CAMBIO: Encabezados actualizados
                     .iter()
                     .map(|h| Cell::from(*h).style(header_style));
 
