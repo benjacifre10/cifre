@@ -34,6 +34,8 @@ pub enum PopupState {
     EnterVersion, // Popup para ingresar versión
     EditArtifactStage, // Popup para editar stage de artifact
     EditArtifactVersion, // Popup para editar version de artifact
+    MoveArtifact, // Popup para mover/intercambiar orden de artifacts
+    PrintArtifacts, // Popup para seleccionar formato de impresión (PNG/PDF)
 }
 
 pub struct ReleasesScreen {
@@ -81,6 +83,9 @@ pub struct ReleasesScreen {
     version_text: String,
     selected_stage_for_edit: usize,
     last_notified_release: Option<String>, // Para evitar notificaciones repetidas
+    selected_move_artifact: usize, // Índice seleccionado en el popup de mover
+    source_artifact_index: usize, // Índice del artefacto que se está moviendo
+    selected_print_format: usize, // 0: PNG, 1: PDF
 }
 
 impl ReleasesScreen {
@@ -135,6 +140,9 @@ impl ReleasesScreen {
             version_text: String::new(),
             selected_stage_for_edit: 0,
             last_notified_release: None,
+            selected_move_artifact: 0,
+            source_artifact_index: 0,
+            selected_print_format: 0,
         };
         
         // Cargar releases al inicializar
@@ -934,12 +942,248 @@ impl ReleasesScreen {
         }
     }
 
+    fn get_order_circle(order: usize) -> &'static str {
+        match order {
+            1 => "①", 2 => "②", 3 => "③", 4 => "④", 5 => "⑤",
+            6 => "⑥", 7 => "⑦", 8 => "⑧", 9 => "⑨", 10 => "⑩",
+            11 => "⑪", 12 => "⑫", 13 => "⑬", 14 => "⑭", 15 => "⑮",
+            16 => "⑯", 17 => "⑰", 18 => "⑱", 19 => "⑲", 20 => "⑳",
+            _ => "㊿",
+        }
+    }
+
+    fn draw_move_artifact_popup(&self, f: &mut Frame, area: ratatui::layout::Rect) {
+        use ratatui::widgets::{Clear, List, ListItem};
+        
+        if let Some(ref release) = self.selected_release_for_info {
+            let mut sorted_artifacts: Vec<_> = release.artifacts.iter().enumerate().collect();
+            sorted_artifacts.sort_by_key(|(_, a)| a.order);
+            
+            let filtered: Vec<_> = sorted_artifacts.iter()
+                .filter(|(idx, _)| *idx != self.source_artifact_index)
+                .collect();
+            
+            let popup_width = 60;
+            let popup_height = (filtered.len() as u16).max(5) + 4;
+            let popup_x = (area.width.saturating_sub(popup_width)) / 2;
+            let popup_y = (area.height.saturating_sub(popup_height)) / 2;
+            
+            let popup_area = ratatui::layout::Rect {
+                x: popup_x,
+                y: popup_y,
+                width: popup_width,
+                height: popup_height,
+            };
+
+            f.render_widget(Clear, popup_area);
+
+            let items: Vec<ListItem> = filtered
+                .iter()
+                .enumerate()
+                .map(|(i, (_, artifact))| {
+                    let artifact_name = self.artifacts.iter()
+                        .find(|a| a.id == artifact.artifact_id)
+                        .map(|a| a.name.as_str())
+                        .unwrap_or("Unknown");
+                    let order_symbol = Self::get_order_circle(artifact.order);
+                    let text = format!("{} {}", order_symbol, artifact_name);
+                    if i == self.selected_move_artifact {
+                        ListItem::new(text).style(Style::default().bg(Color::Blue).fg(Color::White))
+                    } else {
+                        ListItem::new(text)
+                    }
+                })
+                .collect();
+
+            let popup_block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Magenta))
+                .title(Span::styled(" Move Artifact - Select Target ", Style::default().fg(Color::Magenta)));
+
+            let list = List::new(items).block(popup_block);
+            f.render_widget(list, popup_area);
+        }
+    }
+
+    fn draw_print_artifacts_popup(&self, f: &mut Frame, area: ratatui::layout::Rect) {
+        use ratatui::widgets::{Clear, List, ListItem};
+        
+        let formats = vec!["PNG", "PDF"];
+        
+        let popup_width = 30;
+        let popup_height = 6;
+        let popup_x = (area.width.saturating_sub(popup_width)) / 2;
+        let popup_y = (area.height.saturating_sub(popup_height)) / 2;
+        
+        let popup_area = ratatui::layout::Rect {
+            x: popup_x,
+            y: popup_y,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let items: Vec<ListItem> = formats
+            .iter()
+            .enumerate()
+            .map(|(i, format)| {
+                if i == self.selected_print_format {
+                    ListItem::new(*format).style(Style::default().bg(Color::Blue).fg(Color::White))
+                } else {
+                    ListItem::new(*format)
+                }
+            })
+            .collect();
+
+        let popup_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green))
+            .title(Span::styled(" Export Format ", Style::default().fg(Color::Green)));
+
+        let list = List::new(items).block(popup_block);
+        f.render_widget(list, popup_area);
+    }
+
+    fn export_release_artifacts(&self, release: &Release, format: &str) -> Result<String> {
+        use std::env;
+        use std::path::PathBuf;
+        
+        let home_dir = env::var("HOME").or_else(|_| env::var("USERPROFILE"))?;
+        let downloads_dir = PathBuf::from(home_dir).join("Downloads");
+        
+        let filename = format!("{}-{}.{}", release.year, release.name.replace(" ", "_"), format);
+        let filepath = downloads_dir.join(&filename);
+        
+        match format {
+            "png" => self.export_to_png(release, &filepath)?,
+            "pdf" => self.export_to_pdf(release, &filepath)?,
+            _ => return Err(anyhow::anyhow!("Formato no soportado")),
+        }
+        
+        Ok(filepath.to_string_lossy().to_string())
+    }
+
+    fn export_to_png(&self, release: &Release, filepath: &std::path::Path) -> Result<()> {
+        use image::{Rgb, RgbImage};
+        use imageproc::drawing::{draw_text_mut, draw_hollow_rect_mut};
+        use imageproc::rect::Rect as ImgRect;
+        use rusttype::{Font, Scale};
+        
+        let mut sorted_artifacts: Vec<_> = release.artifacts.iter().collect();
+        sorted_artifacts.sort_by_key(|a| a.order);
+        
+        let artifact_height = 80;
+        let width = 800;
+        let height = 100 + (sorted_artifacts.len() * artifact_height);
+        
+        let mut img = RgbImage::from_pixel(width as u32, height as u32, Rgb([255, 255, 255]));
+        
+        let font_data = include_bytes!("/System/Library/Fonts/Helvetica.ttc");
+        let font = Font::try_from_bytes(font_data as &[u8]).ok_or_else(|| anyhow::anyhow!("Error loading font"))?;
+        
+        let title = format!("Release: {} ({})", release.name, release.year);
+        draw_text_mut(&mut img, Rgb([0, 0, 0]), 20, 20, Scale::uniform(24.0), &font, &title);
+        
+        for (i, artifact) in sorted_artifacts.iter().enumerate() {
+            let y = 80 + (i * artifact_height);
+            
+            let artifact_name = self.artifacts.iter()
+                .find(|a| a.id == artifact.artifact_id)
+                .map(|a| a.name.as_str())
+                .unwrap_or("Unknown");
+            let artifact_type = self.artifacts.iter()
+                .find(|a| a.id == artifact.artifact_id)
+                .and_then(|a| self.artifact_types.iter().find(|t| t.id == a.artifact_type_id))
+                .map(|t| t.name.as_str())
+                .unwrap_or("Unknown");
+            let country_name = self.countries.iter()
+                .find(|c| c.id == artifact.country_id)
+                .map(|c| c.name.as_str())
+                .unwrap_or("Unknown");
+            let stage_name = self.stages.iter()
+                .find(|s| s.id == artifact.stage_id)
+                .map(|s| s.name.as_str())
+                .unwrap_or("Unknown");
+            
+            draw_hollow_rect_mut(&mut img, ImgRect::at(10, y as i32).of_size(780, 70), Rgb([128, 128, 128]));
+            
+            let order_text = format!("{}", artifact.order);
+            let country_code = country_name.chars().take(3).collect::<String>().to_uppercase();
+            draw_text_mut(&mut img, Rgb([0, 0, 0]), 20, y as i32 + 10, Scale::uniform(16.0), &font, &country_code);
+            draw_text_mut(&mut img, Rgb([0, 0, 0]), 30, y as i32 + 35, Scale::uniform(14.0), &font, &order_text);
+            
+            let artifact_text = format!("{} - {} v{}", artifact_name, artifact_type, artifact.version);
+            draw_text_mut(&mut img, Rgb([0, 0, 0]), 150, y as i32 + 20, Scale::uniform(18.0), &font, &artifact_text);
+            
+            draw_text_mut(&mut img, Rgb([0, 0, 0]), 650, y as i32 + 20, Scale::uniform(16.0), &font, stage_name);
+        }
+        
+        img.save(filepath)?;
+        Ok(())
+    }
+
+    fn export_to_pdf(&self, release: &Release, filepath: &std::path::Path) -> Result<()> {
+        use printpdf::*;
+        use std::fs::File;
+        use std::io::BufWriter;
+        
+        let mut sorted_artifacts: Vec<_> = release.artifacts.iter().collect();
+        sorted_artifacts.sort_by_key(|a| a.order);
+        
+        let (doc, page1, layer1) = PdfDocument::new(&format!("Release: {} ({})", release.name, release.year), Mm(210.0), Mm(297.0), "Layer 1");
+        let current_layer = doc.get_page(page1).get_layer(layer1);
+        
+        let font = doc.add_builtin_font(BuiltinFont::Helvetica)?;
+        let font_bold = doc.add_builtin_font(BuiltinFont::HelveticaBold)?;
+        
+        current_layer.use_text(&format!("Release: {} ({})", release.name, release.year), 24.0, Mm(20.0), Mm(270.0), &font_bold);
+        
+        let mut y_pos = 250.0;
+        for artifact in sorted_artifacts.iter() {
+            let artifact_name = self.artifacts.iter()
+                .find(|a| a.id == artifact.artifact_id)
+                .map(|a| a.name.as_str())
+                .unwrap_or("Unknown");
+            let artifact_type = self.artifacts.iter()
+                .find(|a| a.id == artifact.artifact_id)
+                .and_then(|a| self.artifact_types.iter().find(|t| t.id == a.artifact_type_id))
+                .map(|t| t.name.as_str())
+                .unwrap_or("Unknown");
+            let country_name = self.countries.iter()
+                .find(|c| c.id == artifact.country_id)
+                .map(|c| c.name.as_str())
+                .unwrap_or("Unknown");
+            let stage_name = self.stages.iter()
+                .find(|s| s.id == artifact.stage_id)
+                .map(|s| s.name.as_str())
+                .unwrap_or("Unknown");
+            
+            let country_code = country_name.chars().take(3).collect::<String>().to_uppercase();
+            let text = format!("[{}] {} - {} - {} v{} - {}", artifact.order, country_code, artifact_name, artifact_type, artifact.version, stage_name);
+            
+            current_layer.use_text(&text, 12.0, Mm(20.0), Mm(y_pos), &font);
+            y_pos -= 10.0;
+            
+            if y_pos < 20.0 {
+                break;
+            }
+        }
+        
+        doc.save(&mut BufWriter::new(File::create(filepath)?))?;
+        Ok(())
+    }
+
     fn draw_custom_artifacts(&self, f: &mut Frame, area: ratatui::layout::Rect, release: &Release) {
         use ratatui::widgets::{Paragraph, Block, Borders};
         use ratatui::layout::{Layout, Direction, Constraint};
         
+        // Ordenar artefactos por order ascendente
+        let mut sorted_artifacts: Vec<_> = release.artifacts.iter().collect();
+        sorted_artifacts.sort_by_key(|a| a.order);
+        
         let available_height = (area.height / 4) as usize; // Más espacio para doble línea
-        let visible_artifacts = release.artifacts.iter().skip(self.deploy_scroll_offset).take(available_height).enumerate();
+        let visible_artifacts = sorted_artifacts.iter().skip(self.deploy_scroll_offset).take(available_height).enumerate();
         
         for (i, ra) in visible_artifacts {
             if i >= available_height { break; }
@@ -996,7 +1240,7 @@ impl ReleasesScreen {
             let columns = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([
-                    Constraint::Length(5),  // País
+                    Constraint::Length(5),  // País + Order
                     Constraint::Length(1),  // Separador 1
                     Constraint::Min(15),    // Artefacto (flexible)
                     Constraint::Length(1),  // Separador 2
@@ -1007,8 +1251,10 @@ impl ReleasesScreen {
             // Estilo de texto
             let text_color = Color::Reset;
             
-            // Sección 1: País (centrado verticalmente)
-            let country_text = Paragraph::new(country_code)
+            // Sección 1: País con order debajo en círculo
+            let order_circle = Self::get_order_circle(ra.order);
+            let country_with_order = format!("{}\n {}", country_code, order_circle);
+            let country_text = Paragraph::new(country_with_order)
                 .style(Style::default().fg(text_color))
                 .alignment(ratatui::layout::Alignment::Center);
             f.render_widget(country_text, columns[0]);
@@ -1191,6 +1437,25 @@ impl Screen for ReleasesScreen {
                                     self.popup_state = PopupState::EditArtifactVersion;
                                 }
                             }
+                        }
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    KeyCode::Char('m') | KeyCode::Char('M') => {
+                        if self.deploy_focused {
+                            if let Some(ref release) = self.selected_release_for_info {
+                                if release.artifacts.len() > 1 && self.selected_deploy_artifact < release.artifacts.len() {
+                                    self.source_artifact_index = self.selected_deploy_artifact;
+                                    self.selected_move_artifact = 0;
+                                    self.popup_state = PopupState::MoveArtifact;
+                                }
+                            }
+                        }
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    KeyCode::Char('p') | KeyCode::Char('P') => {
+                        if self.release_focused && self.selected_release_for_info.is_some() {
+                            self.selected_print_format = 0;
+                            self.popup_state = PopupState::PrintArtifacts;
                         }
                         Ok(ScreenOutcome::Continue)
                     }
@@ -1847,12 +2112,14 @@ impl Screen for ReleasesScreen {
                                 let country_id = self.countries[self.selected_country_for_artifact].id.clone();
                                 let stage_id = self.stages[self.selected_stage_for_artifact].id.clone();
                                 let version = self.version_text.clone();
+                                let order = release.artifacts.len() + 1;
                                 
                                 let new_artifact = ReleaseArtifact {
                                     artifact_id,
                                     country_id,
                                     stage_id,
                                     version,
+                                    order,
                                 };
                                 
                                 release.artifacts.push(new_artifact);
@@ -1951,6 +2218,98 @@ impl Screen for ReleasesScreen {
                     }
                     KeyCode::Backspace => {
                         self.version_text.pop();
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    _ => Ok(ScreenOutcome::Continue),
+                }
+            }
+            PopupState::MoveArtifact => {
+                match key.code {
+                    KeyCode::Esc => {
+                        self.popup_state = PopupState::None;
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    KeyCode::Char('j') => {
+                        if let Some(ref release) = self.selected_release_for_info {
+                            let available_count = release.artifacts.len() - 1;
+                            if self.selected_move_artifact < available_count.saturating_sub(1) {
+                                self.selected_move_artifact += 1;
+                            }
+                        }
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    KeyCode::Char('k') => {
+                        if self.selected_move_artifact > 0 {
+                            self.selected_move_artifact -= 1;
+                        }
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    KeyCode::Enter => {
+                        if let Some(ref mut release) = self.selected_release_for_info {
+                            let mut sorted_artifacts: Vec<_> = release.artifacts.iter().enumerate().collect();
+                            sorted_artifacts.sort_by_key(|(_, a)| a.order);
+                            
+                            let filtered: Vec<_> = sorted_artifacts.iter()
+                                .filter(|(idx, _)| *idx != self.source_artifact_index)
+                                .collect();
+                            
+                            if self.selected_move_artifact < filtered.len() {
+                                let target_index = filtered[self.selected_move_artifact].0;
+                                let source_order = release.artifacts[self.source_artifact_index].order;
+                                let target_order = release.artifacts[target_index].order;
+                                
+                                release.artifacts[self.source_artifact_index].order = target_order;
+                                release.artifacts[target_index].order = source_order;
+                                
+                                if let Err(e) = self.release_repo.update_release_complete(release) {
+                                    eprintln!("Error updating release: {}", e);
+                                    self.notification = Some(Notification::error("Error al mover artefacto".to_string()));
+                                } else {
+                                    self.notification = Some(Notification::success("Artefacto movido exitosamente".to_string()));
+                                }
+                            }
+                        }
+                        self.popup_state = PopupState::None;
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    _ => Ok(ScreenOutcome::Continue),
+                }
+            }
+            PopupState::PrintArtifacts => {
+                match key.code {
+                    KeyCode::Esc => {
+                        self.popup_state = PopupState::None;
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    KeyCode::Char('j') => {
+                        if self.selected_print_format < 1 {
+                            self.selected_print_format += 1;
+                        }
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    KeyCode::Char('k') => {
+                        if self.selected_print_format > 0 {
+                            self.selected_print_format -= 1;
+                        }
+                        Ok(ScreenOutcome::Continue)
+                    }
+                    KeyCode::Enter => {
+                        if let Some(ref release) = self.selected_release_for_info {
+                            let format = if self.selected_print_format == 0 { "png" } else { "pdf" };
+                            match self.export_release_artifacts(release, format) {
+                                Ok(path) => {
+                                    self.notification = Some(Notification::success(
+                                        format!("Archivo exportado: {}", path)
+                                    ));
+                                }
+                                Err(e) => {
+                                    self.notification = Some(Notification::error(
+                                        format!("Error al exportar: {}", e)
+                                    ));
+                                }
+                            }
+                        }
+                        self.popup_state = PopupState::None;
                         Ok(ScreenOutcome::Continue)
                     }
                     _ => Ok(ScreenOutcome::Continue),
@@ -2102,7 +2461,9 @@ impl Screen for ReleasesScreen {
         let options_text = if self.deploy_focused && 
                              self.selected_release_for_info.is_some() && 
                              !self.selected_release_for_info.as_ref().unwrap().artifacts.is_empty() {
-            "E: Edit | V: Version | D: Delete"
+            "E: Edit | V: Version | M: Move | D: Delete"
+        } else if self.release_focused && self.selected_release_for_info.is_some() {
+            "A: Add | P: Print | C: Clear"
         } else {
             "A: Add | C: Clear"
         };
@@ -2190,6 +2551,12 @@ impl Screen for ReleasesScreen {
             }
             PopupState::EditArtifactVersion => {
                 self.draw_edit_artifact_version_popup(f, size);
+            }
+            PopupState::MoveArtifact => {
+                self.draw_move_artifact_popup(f, size);
+            }
+            PopupState::PrintArtifacts => {
+                self.draw_print_artifacts_popup(f, size);
             }
             PopupState::None => {}
         }

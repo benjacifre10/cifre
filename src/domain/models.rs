@@ -46,6 +46,7 @@ pub struct ReleaseArtifact {
     pub country_id: String,
     pub stage_id: String,
     pub version: String,
+    pub order: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

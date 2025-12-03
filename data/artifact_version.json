@@ -3,19 +3,19 @@
     "name": "bff-auth",
     "dev_version": "0.6.3",
     "release_version": "0.6.3 new",
-    "prod_version": "0.4.2"
+    "prod_version": "0.6.3"
   },
   {
     "name": "core-fraud-service",
     "dev_version": "1.3.4",
     "release_version": "1.3.4 new",
-    "prod_version": "N/A"
+    "prod_version": "1.3.4"
   },
   {
     "name": "unlock-service",
     "dev_version": "1.0.4",
     "release_version": "1.0.4 new",
-    "prod_version": "N/A"
+    "prod_version": "1.0.4"
   },
   {
     "name": "bussines-flow-authenticator",
@@ -27,7 +27,7 @@
     "name": "bff-mfa",
     "dev_version": "0.5.6",
     "release_version": "0.5.6 new",
-    "prod_version": "0.5.5"
+    "prod_version": "0.5.6"
   },
   {
     "name": "web-face-recognition",
@@ -45,7 +45,7 @@
     "name": "authority-service",
     "dev_version": "2.24.10",
     "release_version": "2.24.10 new",
-    "prod_version": "2.24.6"
+    "prod_version": "2.24.10"
   },
   {
     "name": "idp-lambda",
@@ -87,12 +87,12 @@
     "name": "bff-unlock",
     "dev_version": "1.6.5",
     "release_version": "1.6.5 new",
-    "prod_version": "N/A"
+    "prod_version": "1.6.5"
   },
   {
     "name": "authorizer-lambda",
     "dev_version": "1.0.38",
     "release_version": "1.0.38 new",
-    "prod_version": "1.0.37"
+    "prod_version": "1.0.38"
   }
 ]

@@ -15,6 +15,7 @@ pub enum ScreenOutcome {
     Continue, // La pantalla manejó el evento y no hay cambio de estado principal
     ChangeState(AppState), // La pantalla solicita un cambio de AppState
     Quit, // La pantalla solicita salir de la aplicación
+    LaunchHelix(std::path::PathBuf), // Lanzar Helix en el directorio especificado
 }
 
 pub trait Screen {

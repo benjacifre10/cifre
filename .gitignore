@@ -1,1 +1,21 @@
+# Rust
 /target
+/data
+/settings
+Cargo.lock
+
+# Debug logs
+*.log
+
+# OS files
+.DS_Store
+*~
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp

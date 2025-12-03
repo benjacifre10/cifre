@@ -103,6 +103,10 @@ impl App {
                         ScreenOutcome::Quit => {
                             self.state = AppState::Quit;
                         },
+                        ScreenOutcome::LaunchHelix(dir) => {
+                            std::env::set_var("CIFRE_HELIX_DIR", dir.to_string_lossy().to_string());
+                            self.state = AppState::Quit;
+                        },
                     }
                 }
             }
