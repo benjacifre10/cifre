@@ -571,25 +571,25 @@ impl HomeScreen {
         let artifacts_style = if self.documentation_focused && self.selected_doc == 0 {
             Style::default().bg(Color::Yellow).fg(Color::Black)
         } else {
-            Style::default().fg(Color::White)
+            Style::default()
         };
 
         let diagrams_style = if self.documentation_focused && self.selected_doc == 1 {
             Style::default().bg(Color::Yellow).fg(Color::Black)
         } else {
-            Style::default().fg(Color::White)
+            Style::default()
         };
 
         let miscellany_style = if self.documentation_focused && self.selected_doc == 2 {
             Style::default().bg(Color::Yellow).fg(Color::Black)
         } else {
-            Style::default().fg(Color::White)
+            Style::default()
         };
 
         let flows_style = if self.documentation_focused && self.selected_doc == 3 {
             Style::default().bg(Color::Yellow).fg(Color::Black)
         } else {
-            Style::default().fg(Color::White)
+            Style::default()
         };
 
         let content = Text::from(vec![
@@ -922,7 +922,7 @@ impl Screen for HomeScreen {
 
         let tools_vertical = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(6)])
+            .constraints([Constraint::Length(7)])
             .split(tools_area);
 
         let documentation_vertical = Layout::default()

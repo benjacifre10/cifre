@@ -15,6 +15,7 @@ use chrono::Utc;
 use super::screen::{Screen, ScreenContext, ScreenOutcome};
 use crate::AppState;
 use crate::domain::models::Task;
+use crate::application::task_service;
 use crate::presentation::components::{task_popup::TaskPopup, move_popup::MovePopup, notification::Notification, task_component::draw_task_component};
 
 pub struct TodoScreen {
@@ -217,6 +218,7 @@ impl TodoScreen {
     }
 
     fn load_tasks(&mut self) {
+        let _ = task_service::cleanup_old_done_tasks();
         self.tasks = match fs::read_to_string("data/task.json") {
             Ok(content) => {
                 serde_json::from_str(&content).unwrap_or_else(|_| Vec::new())

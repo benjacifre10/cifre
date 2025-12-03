@@ -51,14 +51,14 @@
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
           "stage_id": "960cd067-0fab-4c99-9eec-08c1abd3e9ef",
           "version": "1.0.0",
-          "order": 1
+          "order": 2
         },
         {
           "artifact_id": "d5e8fd40-85f4-4791-a78e-7c6ff0480501",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
           "stage_id": "4882c848-c899-409d-be9f-3b764acbcf6c",
           "version": "1.6.5",
-          "order": 5
+          "order": 1
         },
         {
           "artifact_id": "f6ebeeea-a88d-4773-92f2-82ee968e2688",
@@ -72,7 +72,7 @@
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
           "stage_id": "4882c848-c899-409d-be9f-3b764acbcf6c",
           "version": "1.0.4",
-          "order": 2
+          "order": 5
         },
         {
           "artifact_id": "d1713a0f-4e81-4498-a21a-60e971abe1d1",
