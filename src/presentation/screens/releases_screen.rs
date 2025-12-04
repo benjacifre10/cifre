@@ -952,6 +952,16 @@ impl ReleasesScreen {
         }
     }
 
+    fn get_real_artifact_index(&self, visual_index: usize) -> Option<usize> {
+        if let Some(ref release) = self.selected_release_for_info {
+            let mut sorted_indices: Vec<_> = (0..release.artifacts.len()).collect();
+            sorted_indices.sort_by_key(|&i| release.artifacts[i].order);
+            sorted_indices.get(visual_index).copied()
+        } else {
+            None
+        }
+    }
+
     fn draw_move_artifact_popup(&self, f: &mut Frame, area: ratatui::layout::Rect) {
         use ratatui::widgets::{Clear, List, ListItem};
         
@@ -1432,8 +1442,8 @@ impl Screen for ReleasesScreen {
                     KeyCode::Char('v') | KeyCode::Char('V') => {
                         if self.deploy_focused {
                             if let Some(ref release) = self.selected_release_for_info {
-                                if !release.artifacts.is_empty() && self.selected_deploy_artifact < release.artifacts.len() {
-                                    self.version_text = release.artifacts[self.selected_deploy_artifact].version.clone();
+                                if let Some(real_index) = self.get_real_artifact_index(self.selected_deploy_artifact) {
+                                    self.version_text = release.artifacts[real_index].version.clone();
                                     self.popup_state = PopupState::EditArtifactVersion;
                                 }
                             }
@@ -1443,10 +1453,12 @@ impl Screen for ReleasesScreen {
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         if self.deploy_focused {
                             if let Some(ref release) = self.selected_release_for_info {
-                                if release.artifacts.len() > 1 && self.selected_deploy_artifact < release.artifacts.len() {
-                                    self.source_artifact_index = self.selected_deploy_artifact;
-                                    self.selected_move_artifact = 0;
-                                    self.popup_state = PopupState::MoveArtifact;
+                                if release.artifacts.len() > 1 {
+                                    if let Some(real_index) = self.get_real_artifact_index(self.selected_deploy_artifact) {
+                                        self.source_artifact_index = real_index;
+                                        self.selected_move_artifact = 0;
+                                        self.popup_state = PopupState::MoveArtifact;
+                                    }
                                 }
                             }
                         }
@@ -1461,9 +1473,10 @@ impl Screen for ReleasesScreen {
                     }
                     KeyCode::Char('d') | KeyCode::Char('D') => {
                         if self.deploy_focused {
+                            let real_index = self.get_real_artifact_index(self.selected_deploy_artifact);
                             if let Some(ref mut release) = self.selected_release_for_info {
-                                if !release.artifacts.is_empty() && self.selected_deploy_artifact < release.artifacts.len() {
-                                    release.artifacts.remove(self.selected_deploy_artifact);
+                                if let Some(idx) = real_index {
+                                    release.artifacts.remove(idx);
                                     
                                     // Ajustar el índice seleccionado si es necesario
                                     if self.selected_deploy_artifact >= release.artifacts.len() && !release.artifacts.is_empty() {
@@ -2165,20 +2178,19 @@ impl Screen for ReleasesScreen {
                         Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Enter => {
+                        let real_index = self.get_real_artifact_index(self.selected_deploy_artifact);
                         if let Some(ref mut release) = self.selected_release_for_info {
-                            if !release.artifacts.is_empty() && 
-                               self.selected_deploy_artifact < release.artifacts.len() &&
-                               !self.stages.is_empty() && 
-                               self.selected_stage_for_edit < self.stages.len() {
-                                
-                                let new_stage_id = self.stages[self.selected_stage_for_edit].id.clone();
-                                release.artifacts[self.selected_deploy_artifact].stage_id = new_stage_id;
-                                
-                                if let Err(e) = self.release_repo.update_release_complete(release) {
-                                    eprintln!("Error updating release: {}", e);
-                                    self.notification = Some(Notification::error("Error al actualizar stage".to_string()));
-                                } else {
-                                    self.notification = Some(Notification::success("Stage actualizado exitosamente".to_string()));
+                            if let Some(idx) = real_index {
+                                if !self.stages.is_empty() && self.selected_stage_for_edit < self.stages.len() {
+                                    let new_stage_id = self.stages[self.selected_stage_for_edit].id.clone();
+                                    release.artifacts[idx].stage_id = new_stage_id;
+                                    
+                                    if let Err(e) = self.release_repo.update_release_complete(release) {
+                                        eprintln!("Error updating release: {}", e);
+                                        self.notification = Some(Notification::error("Error al actualizar stage".to_string()));
+                                    } else {
+                                        self.notification = Some(Notification::success("Stage actualizado exitosamente".to_string()));
+                                    }
                                 }
                             }
                         }
@@ -2195,11 +2207,10 @@ impl Screen for ReleasesScreen {
                         Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Enter => {
+                        let real_index = self.get_real_artifact_index(self.selected_deploy_artifact);
                         if let Some(ref mut release) = self.selected_release_for_info {
-                            if !release.artifacts.is_empty() && 
-                               self.selected_deploy_artifact < release.artifacts.len() {
-                                
-                                release.artifacts[self.selected_deploy_artifact].version = self.version_text.clone();
+                            if let Some(idx) = real_index {
+                                release.artifacts[idx].version = self.version_text.clone();
                                 
                                 if let Err(e) = self.release_repo.update_release_complete(release) {
                                     eprintln!("Error updating release: {}", e);
