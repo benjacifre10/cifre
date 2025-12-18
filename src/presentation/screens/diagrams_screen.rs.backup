@@ -1,0 +1,1094 @@
+use anyhow::Result;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::{
+    layout::{Constraint, Direction, Layout, Alignment, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, Paragraph, Clear},
+    Frame,
+};
+
+use super::screen::{Screen, ScreenContext, ScreenOutcome};
+use crate::AppState;
+
+pub struct DiagramsScreen {
+    show_options_popup: bool,
+    selected_option: usize,
+    show_diagram_type_popup: bool,
+    selected_diagram_type: usize,
+    show_sequence_canvas: bool,
+    show_diagram_name_popup: bool,
+    diagram_name_input: String,
+    current_diagram_name: String,
+    show_add_object_popup: bool,
+    object_name_input: String,
+    selected_object_type: usize,
+    artifact_types: Vec<String>,
+    show_load_popup: bool,
+    available_diagrams: Vec<String>,
+    selected_diagram: usize,
+    show_add_message_popup: bool,
+    message_description_input: String,
+    message_notes_input: String,
+    selected_from_object: usize,
+    selected_to_object: usize,
+    current_message_field: usize, // 0=description, 1=from, 2=to, 3=notes
+    available_objects: Vec<String>,
+}
+
+impl DiagramsScreen {
+    pub fn new() -> Self {
+        Self {
+            show_options_popup: false,
+            selected_option: 0,
+            show_diagram_type_popup: false,
+            selected_diagram_type: 0,
+            show_sequence_canvas: false,
+            show_diagram_name_popup: false,
+            diagram_name_input: String::new(),
+            current_diagram_name: String::new(),
+            show_add_object_popup: false,
+            object_name_input: String::new(),
+            selected_object_type: 0,
+            artifact_types: vec!["ms".to_string(), "lambda".to_string(), "db".to_string(), "mobile".to_string(), "bff".to_string()],
+            show_load_popup: false,
+            available_diagrams: Vec::new(),
+            selected_diagram: 0,
+            show_add_message_popup: false,
+            message_description_input: String::new(),
+            message_notes_input: String::new(),
+            selected_from_object: 0,
+            selected_to_object: 0,
+            current_message_field: 0,
+            available_objects: Vec::new(),
+        }
+    }
+}
+
+impl Screen for DiagramsScreen {
+    fn handle_key_event(&mut self, key: KeyEvent) -> Result<ScreenOutcome> {
+        if self.show_add_message_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_add_message_popup = false;
+                    self.message_description_input.clear();
+                    self.message_notes_input.clear();
+                    self.current_message_field = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Tab => {
+                    self.current_message_field = (self.current_message_field + 1) % 4; // 4 fields
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char(c) => {
+                    match self.current_message_field {
+                        0 => self.message_description_input.push(c), // description
+                        3 => self.message_notes_input.push(c),       // notes
+                        _ => {} // from/to are dropdowns, no text input
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Backspace => {
+                    match self.current_message_field {
+                        0 => { self.message_description_input.pop(); }
+                        3 => { self.message_notes_input.pop(); }
+                        _ => {}
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    match self.current_message_field {
+                        1 => { // from dropdown
+                            if !self.available_objects.is_empty() {
+                                self.selected_from_object = (self.selected_from_object + 1) % self.available_objects.len();
+                            }
+                        }
+                        2 => { // to dropdown
+                            if !self.available_objects.is_empty() {
+                                self.selected_to_object = (self.selected_to_object + 1) % self.available_objects.len();
+                            }
+                        }
+                        _ => {}
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    match self.current_message_field {
+                        1 => { // from dropdown
+                            if !self.available_objects.is_empty() {
+                                self.selected_from_object = if self.selected_from_object == 0 { 
+                                    self.available_objects.len() - 1 
+                                } else { 
+                                    self.selected_from_object - 1 
+                                };
+                            }
+                        }
+                        2 => { // to dropdown
+                            if !self.available_objects.is_empty() {
+                                self.selected_to_object = if self.selected_to_object == 0 { 
+                                    self.available_objects.len() - 1 
+                                } else { 
+                                    self.selected_to_object - 1 
+                                };
+                            }
+                        }
+                        _ => {}
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    if !self.message_description_input.is_empty() && !self.available_objects.is_empty() {
+                        self.save_message_to_diagram();
+                        self.show_add_message_popup = false;
+                        self.message_description_input.clear();
+                        self.message_notes_input.clear();
+                        self.current_message_field = 0;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_load_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_load_popup = false;
+                    self.available_diagrams.clear();
+                    self.selected_diagram = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    if !self.available_diagrams.is_empty() {
+                        self.selected_diagram = (self.selected_diagram + 1) % self.available_diagrams.len();
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    if !self.available_diagrams.is_empty() {
+                        self.selected_diagram = if self.selected_diagram == 0 { 
+                            self.available_diagrams.len() - 1 
+                        } else { 
+                            self.selected_diagram - 1 
+                        };
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    if !self.available_diagrams.is_empty() && self.selected_diagram < self.available_diagrams.len() {
+                        self.current_diagram_name = self.available_diagrams[self.selected_diagram].clone();
+                        self.show_load_popup = false;
+                        self.available_diagrams.clear();
+                        self.selected_diagram = 0;
+                        self.show_sequence_canvas = true;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_add_object_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_add_object_popup = false;
+                    self.object_name_input.clear();
+                    self.selected_object_type = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char(c) => {
+                    self.object_name_input.push(c);
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Backspace => {
+                    self.object_name_input.pop();
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Tab => {
+                    self.selected_object_type = (self.selected_object_type + 1) % self.artifact_types.len();
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    if !self.object_name_input.is_empty() {
+                        // Save object to diagram file
+                        self.save_object_to_diagram();
+                        self.show_add_object_popup = false;
+                        self.object_name_input.clear();
+                        self.selected_object_type = 0;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_diagram_name_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_diagram_name_popup = false;
+                    self.diagram_name_input.clear();
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char(c) => {
+                    self.diagram_name_input.push(c);
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Backspace => {
+                    self.diagram_name_input.pop();
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    if !self.diagram_name_input.is_empty() {
+                        self.current_diagram_name = self.diagram_name_input.clone();
+                        // Create empty diagram file
+                        self.create_empty_diagram_file();
+                        self.show_diagram_name_popup = false;
+                        self.diagram_name_input.clear();
+                        self.show_sequence_canvas = true;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_sequence_canvas {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Char('Q') => Ok(ScreenOutcome::Quit),
+                KeyCode::Char('b') | KeyCode::Char('B') => {
+                    self.show_sequence_canvas = false;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('a') | KeyCode::Char('A') => {
+                    self.show_add_object_popup = true;
+                    self.object_name_input.clear();
+                    self.selected_object_type = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('m') | KeyCode::Char('M') => {
+                    // Show Add Message popup
+                    self.load_available_objects();
+                    if !self.available_objects.is_empty() {
+                        self.show_add_message_popup = true;
+                        self.message_description_input.clear();
+                        self.message_notes_input.clear();
+                        self.selected_from_object = 0;
+                        self.selected_to_object = 0;
+                        self.current_message_field = 0;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_diagram_type_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_diagram_type_popup = false;
+                    self.selected_diagram_type = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    self.selected_diagram_type = (self.selected_diagram_type + 1) % 3;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    self.selected_diagram_type = if self.selected_diagram_type == 0 { 2 } else { self.selected_diagram_type - 1 };
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    match self.selected_diagram_type {
+                        0 => {
+                            self.show_diagram_type_popup = false;
+                            self.selected_diagram_type = 0;
+                            self.show_diagram_name_popup = true;
+                            self.diagram_name_input.clear();
+                        }
+                        1 => {
+                            // TODO: Create State diagram
+                        }
+                        2 => {
+                            // TODO: Create Flow diagram
+                        }
+                        _ => {}
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_options_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_options_popup = false;
+                    self.selected_option = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    self.selected_option = (self.selected_option + 1) % 3;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    self.selected_option = if self.selected_option == 0 { 2 } else { self.selected_option - 1 };
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    match self.selected_option {
+                        0 => {
+                            self.show_options_popup = false;
+                            self.selected_option = 0;
+                            self.show_diagram_type_popup = true;
+                        }
+                        1 => {
+                            // Load option - show available diagrams
+                            self.load_available_diagrams();
+                            if !self.available_diagrams.is_empty() {
+                                self.show_options_popup = false;
+                                self.selected_option = 0;
+                                self.show_load_popup = true;
+                                self.selected_diagram = 0;
+                            }
+                        }
+                        2 => {
+                            // TODO: Handle save option
+                        }
+                        _ => {}
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('n') | KeyCode::Char('N') => {
+                    self.show_options_popup = false;
+                    self.selected_option = 0;
+                    self.show_diagram_type_popup = true;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('l') | KeyCode::Char('L') => {
+                    // Load option - show available diagrams
+                    self.load_available_diagrams();
+                    if !self.available_diagrams.is_empty() {
+                        self.show_options_popup = false;
+                        self.selected_option = 0;
+                        self.show_load_popup = true;
+                        self.selected_diagram = 0;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    // TODO: Handle save option
+                    self.show_options_popup = false;
+                    self.selected_option = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Char('Q') => Ok(ScreenOutcome::Quit),
+                KeyCode::Char('b') | KeyCode::Char('B') => {
+                    Ok(ScreenOutcome::ChangeState(AppState::Home))
+                }
+                KeyCode::Char('o') | KeyCode::Char('O') => {
+                    self.show_options_popup = true;
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        }
+    }
+
+    fn draw(&mut self, f: &mut Frame, _context: &ScreenContext) {
+        if self.show_sequence_canvas {
+            self.draw_sequence_canvas(f);
+        } else {
+            self.draw_main_screen(f);
+        }
+
+        // Draw popups
+        if self.show_add_message_popup {
+            self.draw_add_message_popup(f);
+        } else if self.show_load_popup {
+            self.draw_load_popup(f);
+        } else if self.show_add_object_popup {
+            self.draw_add_object_popup(f);
+        } else if self.show_diagram_name_popup {
+            self.draw_diagram_name_popup(f);
+        } else if self.show_options_popup {
+            self.draw_options_popup(f);
+        } else if self.show_diagram_type_popup {
+            self.draw_diagram_type_popup(f);
+        }
+    }
+}
+
+impl DiagramsScreen {
+    fn draw_main_screen(&self, f: &mut Frame) {
+        let main_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(3)])
+            .split(f.size());
+
+        let title_block = Line::from(vec![
+            Span::styled("📊 ", Style::default().fg(Color::LightBlue)),
+            Span::styled("Diagrams", Style::default().add_modifier(Modifier::BOLD)),
+        ]);
+        
+        let main_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::LightBlue))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(title_block);
+
+        let content = Paragraph::new("Diagrams content will go here").block(main_block);
+        f.render_widget(content, main_layout[0]);
+
+        let menu_text = Paragraph::new("B: Back | Q: Quit | O: Options")
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Magenta))
+                    .border_type(ratatui::widgets::BorderType::Thick)
+                    .title(Line::from(vec![
+                        Span::styled("⚙ ", Style::default().fg(Color::Magenta)),
+                        Span::styled("Menu", Style::default().add_modifier(Modifier::BOLD)),
+                    ]))
+            );
+        
+        f.render_widget(menu_text, main_layout[1]);
+    }
+
+    fn draw_sequence_canvas(&self, f: &mut Frame) {
+        let main_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(3), Constraint::Length(3)])
+            .split(f.size());
+
+        // Main canvas area with objects integrated
+        let canvas_title = Line::from(vec![
+            Span::styled("🔄 ", Style::default().fg(Color::LightBlue)),
+            Span::styled(
+                format!("Sequence Diagram: {}", self.current_diagram_name),
+                Style::default().add_modifier(Modifier::BOLD)
+            ),
+        ]);
+        
+        let canvas_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::LightBlue))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(canvas_title);
+
+        // Draw objects and messages in the main canvas
+        self.draw_canvas_content(f, main_layout[0], canvas_block);
+
+        // Submenu area
+        let submenu_text = Paragraph::new("A: Add Object | M: Add Message")
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow))
+                    .title(Span::styled(" Submenu ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)))
+            );
+        
+        f.render_widget(submenu_text, main_layout[1]);
+
+        // Menu area
+        let menu_text = Paragraph::new("B: Back | Q: Quit")
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Magenta))
+                    .border_type(ratatui::widgets::BorderType::Thick)
+                    .title(Line::from(vec![
+                        Span::styled("⚙ ", Style::default().fg(Color::Magenta)),
+                        Span::styled("Menu", Style::default().add_modifier(Modifier::BOLD)),
+                    ]))
+            );
+        
+        f.render_widget(menu_text, main_layout[2]);
+    }
+
+    fn draw_canvas_content(&self, f: &mut Frame, area: Rect, block: Block) {
+        let objects = self.load_diagram_objects();
+        
+        if objects.is_empty() {
+            let content = Paragraph::new("No objects yet. Press A to add objects.")
+                .alignment(Alignment::Center)
+                .block(block);
+            f.render_widget(content, area);
+            return;
+        }
+
+        // Calculate object dimensions based on longest name
+        let max_name_len = objects.iter()
+            .map(|obj| obj["name"].as_str().unwrap_or("").len())
+            .max()
+            .unwrap_or(8);
+        
+        let object_width = (max_name_len + 4).max(10); // +4 for padding, minimum 10
+        let object_height = 4;
+        let spacing = 2;
+        
+        // Calculate layout
+        let total_objects = objects.len();
+        let total_width = total_objects * object_width + (total_objects.saturating_sub(1)) * spacing;
+        let available_width = area.width.saturating_sub(2) as usize; // -2 for borders
+        
+        // Draw the main block first
+        f.render_widget(block, area);
+        
+        // Inner area for content
+        let inner_area = Rect {
+            x: area.x + 1,
+            y: area.y + 1,
+            width: area.width.saturating_sub(2),
+            height: area.height.saturating_sub(2),
+        };
+
+        if total_width > available_width {
+            // Show scrollable indicator
+            let content = Paragraph::new(format!("{} objects (use horizontal scroll)", total_objects))
+                .alignment(Alignment::Center);
+            f.render_widget(content, inner_area);
+            return;
+        }
+
+        // Draw objects horizontally centered at the top
+        let start_x = (available_width - total_width) / 2;
+        
+        for (i, obj) in objects.iter().enumerate() {
+            let x = start_x + i * (object_width + spacing);
+            let obj_area = Rect {
+                x: inner_area.x + x as u16,
+                y: inner_area.y,
+                width: object_width as u16,
+                height: object_height,
+            };
+            
+            self.draw_single_object(f, obj_area, obj);
+        }
+
+        // Draw messages area below objects
+        if inner_area.height > object_height + 2 {
+            let messages_area = Rect {
+                x: inner_area.x,
+                y: inner_area.y + object_height + 1,
+                width: inner_area.width,
+                height: inner_area.height - object_height - 1,
+            };
+            
+            let messages_content = Paragraph::new("Messages will appear here")
+                .alignment(Alignment::Center);
+            f.render_widget(messages_content, messages_area);
+        }
+    }
+
+    fn draw_single_object(&self, f: &mut Frame, area: Rect, obj: &serde_json::Value) {
+        let name = obj["name"].as_str().unwrap_or("Unknown");
+        let obj_type = obj["type"].as_str().unwrap_or("unknown");
+        
+        // Get color based on type
+        let color = match obj_type {
+            "ms" => Color::Blue,
+            "lambda" => Color::Rgb(255, 165, 0), // Orange
+            "db" => Color::Green,
+            "mobile" => Color::Magenta,
+            "bff" => Color::Cyan,
+            _ => Color::White,
+        };
+        
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(color))
+            .border_type(ratatui::widgets::BorderType::Double)
+            .title(Span::styled(
+                format!(" {} ", obj_type.to_uppercase()),
+                Style::default().fg(color).add_modifier(Modifier::BOLD)
+            ));
+        
+        // Handle long names by wrapping or truncating intelligently
+        let content = if name.len() > area.width.saturating_sub(2) as usize {
+            // If name is too long, try to wrap it
+            let mid = name.len() / 2;
+            if let Some(space_pos) = name[..mid].rfind(' ') {
+                format!("{}\n{}", &name[..space_pos], &name[space_pos + 1..])
+            } else if let Some(dash_pos) = name[..mid].rfind('-') {
+                format!("{}-\n{}", &name[..dash_pos], &name[dash_pos + 1..])
+            } else {
+                // Truncate with ellipsis
+                format!("{}...", &name[..area.width.saturating_sub(5) as usize])
+            }
+        } else {
+            name.to_string()
+        };
+        
+        let paragraph = Paragraph::new(content)
+            .alignment(Alignment::Center)
+            .block(block);
+        
+        f.render_widget(paragraph, area);
+    }
+
+    fn load_diagram_objects(&self) -> Vec<serde_json::Value> {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(objects) = diagram["objects"].as_array() {
+                    let mut sorted_objects = objects.clone();
+                    // Sort by order field
+                    sorted_objects.sort_by(|a, b| {
+                        let order_a = a["order"].as_u64().unwrap_or(0);
+                        let order_b = b["order"].as_u64().unwrap_or(0);
+                        order_a.cmp(&order_b)
+                    });
+                    return sorted_objects;
+                }
+            }
+        }
+        
+        Vec::new()
+    }
+
+    fn draw_options_popup(&self, f: &mut Frame) {
+        let options = vec!["N: New", "L: Load", "S: Save"];
+        let max_option_width = options.iter().map(|s| s.len()).max().unwrap_or(0);
+        let popup_width = (max_option_width + 4).max(20) as u16;
+        let popup_height = (options.len() + 4) as u16;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width.saturating_sub(popup_width)) / 2,
+            y: (size.height.saturating_sub(popup_height)) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Options ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+
+        let mut lines = vec![Line::from("")];
+        for (i, option) in options.iter().enumerate() {
+            let style = if i == self.selected_option {
+                Style::default().bg(Color::Yellow).fg(Color::Black)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            lines.push(Line::from(Span::styled(format!(" {}", option), style)));
+        }
+        lines.push(Line::from(""));
+
+        let content = Text::from(lines);
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
+    fn draw_diagram_type_popup(&self, f: &mut Frame) {
+        let diagram_types = vec!["Sequence", "State", "Flow"];
+        let max_type_width = diagram_types.iter().map(|s| s.len()).max().unwrap_or(0);
+        let popup_width = (max_type_width + 4).max(20) as u16;
+        let popup_height = (diagram_types.len() + 4) as u16;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width.saturating_sub(popup_width)) / 2,
+            y: (size.height.saturating_sub(popup_height)) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Diagram Type ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)));
+
+        let mut lines = vec![Line::from("")];
+        for (i, diagram_type) in diagram_types.iter().enumerate() {
+            let style = if i == self.selected_diagram_type {
+                Style::default().bg(Color::Yellow).fg(Color::Black)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            lines.push(Line::from(Span::styled(format!(" {}", diagram_type), style)));
+        }
+        lines.push(Line::from(""));
+
+        let content = Text::from(lines);
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
+    fn draw_diagram_name_popup(&self, f: &mut Frame) {
+        let popup_width = 40;
+        let popup_height = 7;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width.saturating_sub(popup_width)) / 2,
+            y: (size.height.saturating_sub(popup_height)) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Blue))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Diagram Name ", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)));
+
+        let content = Text::from(vec![
+            Line::from(""),
+            Line::from(Span::styled("Name:", Style::default().fg(Color::White))),
+            Line::from(Span::styled(
+                format!("> {}", self.diagram_name_input),
+                Style::default().fg(Color::Yellow)
+            )),
+            Line::from(""),
+        ]);
+
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
+    fn draw_add_object_popup(&self, f: &mut Frame) {
+        let popup_width = 50;
+        let popup_height = 10;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width.saturating_sub(popup_width)) / 2,
+            y: (size.height.saturating_sub(popup_height)) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Red))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Add Object ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)));
+
+        let selected_type = &self.artifact_types[self.selected_object_type];
+        
+        let content = Text::from(vec![
+            Line::from(""),
+            Line::from(Span::styled("Name:", Style::default().fg(Color::White))),
+            Line::from(Span::styled(
+                format!("> {}", self.object_name_input),
+                Style::default().fg(Color::Yellow)
+            )),
+            Line::from(""),
+            Line::from(Span::styled("Type (Tab to change):", Style::default().fg(Color::White))),
+            Line::from(Span::styled(
+                format!("> {}", selected_type),
+                Style::default().fg(Color::Green)
+            )),
+            Line::from(""),
+        ]);
+
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
+    fn create_empty_diagram_file(&self) {
+        use std::fs;
+        
+        // Create data/diagrams directory if it doesn't exist
+        let _ = fs::create_dir_all("data/diagrams");
+        
+        // Create empty diagram structure
+        let empty_diagram = serde_json::json!({
+            "name": self.current_diagram_name,
+            "type": "sequence",
+            "objects": [],
+            "messages": []
+        });
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        let _ = fs::write(file_path, serde_json::to_string_pretty(&empty_diagram).unwrap_or_default());
+    }
+
+    fn save_object_to_diagram(&self) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        // Read existing diagram
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(mut diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                // Calculate next order (number of existing objects + 1)
+                let next_order = if let Some(objects) = diagram["objects"].as_array() {
+                    objects.len() + 1
+                } else {
+                    1
+                };
+                
+                // Add new object with order
+                let new_object = serde_json::json!({
+                    "name": self.object_name_input,
+                    "type": self.artifact_types[self.selected_object_type],
+                    "order": next_order
+                });
+                
+                if let Some(objects) = diagram["objects"].as_array_mut() {
+                    objects.push(new_object);
+                }
+                
+                // Save updated diagram
+                let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+            }
+        }
+    }
+
+    fn load_available_diagrams(&mut self) {
+        use std::fs;
+        
+        self.available_diagrams.clear();
+        
+        if let Ok(entries) = fs::read_dir("data/diagrams") {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if path.is_file() {
+                        if let Some(file_name) = path.file_name() {
+                            if let Some(name_str) = file_name.to_str() {
+                                if name_str.ends_with(".json") {
+                                    // Remove .json extension
+                                    let diagram_name = name_str.trim_end_matches(".json").to_string();
+                                    self.available_diagrams.push(diagram_name);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Sort diagrams alphabetically
+        self.available_diagrams.sort();
+    }
+
+    fn draw_load_popup(&self, f: &mut Frame) {
+        if self.available_diagrams.is_empty() {
+            // Show "no diagrams" message
+            let popup_width = 30;
+            let popup_height = 5;
+            
+            let size = f.size();
+            let popup_area = Rect {
+                x: (size.width.saturating_sub(popup_width)) / 2,
+                y: (size.height.saturating_sub(popup_height)) / 2,
+                width: popup_width,
+                height: popup_height,
+            };
+
+            f.render_widget(Clear, popup_area);
+
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow))
+                .border_type(ratatui::widgets::BorderType::Thick)
+                .title(Span::styled(" Load Diagram ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+
+            let content = Text::from(vec![
+                Line::from(""),
+                Line::from(Span::styled("No diagrams found", Style::default().fg(Color::White))),
+            ]);
+
+            let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(block);
+            f.render_widget(paragraph, popup_area);
+            return;
+        }
+
+        // Calculate popup size based on content
+        let max_name_len = self.available_diagrams.iter().map(|s| s.len()).max().unwrap_or(0);
+        let popup_width = (max_name_len + 6).max(25) as u16; // +6 for padding and selection indicator
+        let popup_height = (self.available_diagrams.len() + 4).min(15) as u16; // Max 15 lines
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width.saturating_sub(popup_width)) / 2,
+            y: (size.height.saturating_sub(popup_height)) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Yellow))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Load Diagram ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+
+        let mut lines = vec![Line::from("")];
+        for (i, diagram_name) in self.available_diagrams.iter().enumerate() {
+            let style = if i == self.selected_diagram {
+                Style::default().bg(Color::Yellow).fg(Color::Black)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            
+            lines.push(Line::from(Span::styled(
+                format!(" {}", diagram_name),
+                style
+            )));
+        }
+        lines.push(Line::from(""));
+
+        let content = Text::from(lines);
+    fn load_available_objects(&mut self) {
+        self.available_objects.clear();
+        let objects = self.load_diagram_objects();
+        
+        for obj in objects {
+            if let Some(name) = obj["name"].as_str() {
+                self.available_objects.push(name.to_string());
+            }
+        }
+    }
+
+    fn save_message_to_diagram(&self) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        // Read existing diagram
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(mut diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                // Calculate next order (number of existing messages + 1)
+                let next_order = if let Some(messages) = diagram["messages"].as_array() {
+                    messages.len() + 1
+                } else {
+                    1
+                };
+                
+                let from_object = if self.selected_from_object < self.available_objects.len() {
+                    &self.available_objects[self.selected_from_object]
+                } else {
+                    ""
+                };
+                
+                let to_object = if self.selected_to_object < self.available_objects.len() {
+                    &self.available_objects[self.selected_to_object]
+                } else {
+                    ""
+                };
+                
+                // Add new message
+                let new_message = serde_json::json!({
+                    "description": self.message_description_input,
+                    "from": from_object,
+                    "to": to_object,
+                    "notes": self.message_notes_input,
+                    "order": next_order
+                });
+                
+                if let Some(messages) = diagram["messages"].as_array_mut() {
+                    messages.push(new_message);
+                }
+                
+                // Save updated diagram
+                let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+            }
+        }
+    }
+
+    fn draw_add_message_popup(&self, f: &mut Frame) {
+        let popup_width = 60;
+        let popup_height = 16;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width.saturating_sub(popup_width)) / 2,
+            y: (size.height.saturating_sub(popup_height)) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Magenta))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Add Message ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)));
+
+        let from_object = if self.selected_from_object < self.available_objects.len() {
+            &self.available_objects[self.selected_from_object]
+        } else {
+            "No objects"
+        };
+        
+        let to_object = if self.selected_to_object < self.available_objects.len() {
+            &self.available_objects[self.selected_to_object]
+        } else {
+            "No objects"
+        };
+        
+        let mut lines = vec![Line::from("")];
+        
+        // Description field
+        let desc_style = if self.current_message_field == 0 {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        lines.push(Line::from(Span::styled("Description:", desc_style)));
+        lines.push(Line::from(Span::styled(
+            format!("> {}", self.message_description_input),
+            if self.current_message_field == 0 { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) }
+        )));
+        lines.push(Line::from(""));
+        
+        // From field
+        let from_style = if self.current_message_field == 1 {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        lines.push(Line::from(Span::styled("From (j/k to change):", from_style)));
+        lines.push(Line::from(Span::styled(
+            format!("> {}", from_object),
+            if self.current_message_field == 1 { Style::default().fg(Color::Green) } else { Style::default().fg(Color::Gray) }
+        )));
+        lines.push(Line::from(""));
+        
+        // To field
+        let to_style = if self.current_message_field == 2 {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        lines.push(Line::from(Span::styled("To (j/k to change):", to_style)));
+        lines.push(Line::from(Span::styled(
+            format!("> {}", to_object),
+            if self.current_message_field == 2 { Style::default().fg(Color::Green) } else { Style::default().fg(Color::Gray) }
+        )));
+        lines.push(Line::from(""));
+        
+        // Notes field
+        let notes_style = if self.current_message_field == 3 {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        lines.push(Line::from(Span::styled("Notes:", notes_style)));
+        lines.push(Line::from(Span::styled(
+            format!("> {}", self.message_notes_input),
+            if self.current_message_field == 3 { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) }
+        )));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled("Tab: Next field | Enter: Save", Style::default().fg(Color::Cyan))));
+
+        let content = Text::from(lines);
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+}

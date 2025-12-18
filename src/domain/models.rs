@@ -18,6 +18,7 @@ pub struct Task {
 pub struct Country {
     pub id: String,
     pub name: String,
+    pub code: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -77,3 +78,45 @@ pub struct VersionsArtifact {
     pub prod_version: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtifactCountryStage {
+    pub country_id: String,
+    pub stages: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtifactDoc {
+    pub id: String,
+    pub name: String,
+    pub namespace: String,
+    pub countries: Vec<ArtifactCountryStage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HpaStageData {
+    pub stage: String,
+    pub min_replicas: u32,
+    pub max_replicas: u32,
+    pub deploy_replicas: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HpaCountryData {
+    pub country: String,
+    pub stages: Vec<HpaStageData>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtifactHpaDoc {
+    pub id: String,
+    pub name: String,
+    pub hpa: Vec<HpaCountryData>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtifactDescDoc {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub purpose: String,
+}

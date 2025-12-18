@@ -7,8 +7,8 @@
   },
   {
     "name": "core-fraud-service",
-    "dev_version": "1.3.4",
-    "release_version": "1.3.4 new",
+    "dev_version": "1.4.0",
+    "release_version": "1.4.0 new",
     "prod_version": "1.3.4"
   },
   {

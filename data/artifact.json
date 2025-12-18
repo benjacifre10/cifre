@@ -23,7 +23,7 @@
     {
       "id": "127b0d74-df9c-4bb3-ad5d-b33f3ffbce84",
       "name": "authority-db",
-      "artifact_type_id": 3
+      "artifact_type_id": 8
     },
     {
       "id": "d8a76978-c8e9-491c-b4ad-273f82227cc1",
@@ -59,6 +59,11 @@
       "id": "269141c5-3cfb-443b-9b60-22e454e374e2",
       "name": "authorizer-lambda",
       "artifact_type_id": 2
+    },
+    {
+      "id": "d44025bb-86aa-4155-9a81-fa0f00462fca",
+      "name": "unlock-db",
+      "artifact_type_id": 3
     }
   ]
 }

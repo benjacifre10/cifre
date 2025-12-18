@@ -10,7 +10,7 @@
     },
     {
       "id": 3,
-      "name": "db"
+      "name": "db-sql"
     },
     {
       "id": 4,
@@ -19,6 +19,22 @@
     {
       "id": 5,
       "name": "bff"
+    },
+    {
+      "id": 6,
+      "name": "external"
+    },
+    {
+      "id": 7,
+      "name": "apigw"
+    },
+    {
+      "id": 8,
+      "name": "db-nosql"
+    },
+    {
+      "id": 9,
+      "name": "db-redis"
     }
   ]
 }

@@ -11,43 +11,10 @@
     "alert": true
   },
   {
-    "id": "1090d2c2-942d-42f8-8e85-f1428ceafdce",
-    "name": "Generar task para crear base de datos Core-fraud",
-    "description": "falta definir nombre. core-fraud-db",
-    "state": "done",
-    "priority": "medium",
-    "tag": "work",
-    "creation_date": "2025-11-06",
-    "finish_date": "2025-11-07",
-    "alert": true
-  },
-  {
-    "id": "9d8c40e3-359c-44d3-883d-23d5864a4090",
-    "name": "Generar tablero de login",
-    "description": "Esto en dyna. Ver con los chicos. Hablar con gonza por grafana productivo",
-    "state": "done",
-    "priority": "high",
-    "tag": "work",
-    "creation_date": "2025-11-06",
-    "finish_date": "2025-11-07",
-    "alert": true
-  },
-  {
-    "id": "3a85718e-e6ec-4b3b-b5c1-508b8f05fff8",
-    "name": "Crear tareas paygilant",
-    "description": "Tomar el excalidraw. Y ejecutar tareas y documentacion asociada",
-    "state": "done",
-    "priority": "critical",
-    "tag": "work",
-    "creation_date": "2025-11-06",
-    "finish_date": "2025-11-06",
-    "alert": true
-  },
-  {
     "id": "23612f9b-2ef5-44e4-8e64-15a5a54f1482",
     "name": "Preparar paytalk sobre MFA y Paygilant",
     "description": "Seria describir y ejemplificar todas las casuisticas. Para poder implementarlo",
-    "state": "progress",
+    "state": "done",
     "priority": "medium",
     "tag": "work",
     "creation_date": "2025-11-07",
@@ -63,17 +30,6 @@
     "tag": "work",
     "creation_date": "2025-11-07",
     "finish_date": "2025-11-22",
-    "alert": true
-  },
-  {
-    "id": "38042469-69a4-45df-9cba-1c35517b5f00",
-    "name": "Pagar impuestos estrada",
-    "description": "",
-    "state": "done",
-    "priority": "critical",
-    "tag": "personal",
-    "creation_date": "2025-11-10",
-    "finish_date": "2025-11-10",
     "alert": true
   },
   {
@@ -113,7 +69,7 @@
     "id": "5b85c894-82fb-40ef-93f7-f0ac7b230492",
     "name": "Revisar core-fraud-db",
     "description": "la subida a dev esta fallando por una autenticacion en el pipeline",
-    "state": "progress",
+    "state": "done",
     "priority": "critical",
     "tag": "work",
     "creation_date": "2025-11-17",
@@ -168,7 +124,7 @@
     "id": "f61c7a3b-50af-459f-89f8-0800d657ce31",
     "name": "Temas de charli y tincho",
     "description": "conf sqlautomation, apigw paygilant, user corefrauddb, con tinchodba total clientes vs users",
-    "state": "progress",
+    "state": "done",
     "priority": "critical",
     "tag": "work",
     "creation_date": "2025-11-28",
@@ -184,6 +140,94 @@
     "tag": "work",
     "creation_date": "2025-12-02",
     "finish_date": "2025-12-03",
+    "alert": true
+  },
+  {
+    "id": "66ec38a0-1859-4f72-99bc-33d9075883fd",
+    "name": "Documentar nueva traduccion del Core de Fraude",
+    "description": "Antes tomaba el risk_level(0 a 3) y ahora deberia tomar el enforce_challenge y el enforce_block",
+    "state": "done",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-12-06",
+    "finish_date": "2025-12-09",
+    "alert": true
+  },
+  {
+    "id": "895b7493-fa1c-4ec6-b90f-528e6ef46975",
+    "name": "Terminar app de Drawio para Ratatui",
+    "description": "Deberia estar in situ en la app",
+    "state": "block",
+    "priority": "low",
+    "tag": "personal",
+    "creation_date": "2025-12-06",
+    "finish_date": "2025-12-31",
+    "alert": false
+  },
+  {
+    "id": "d183b3ca-cf74-4714-a7e7-c1c1752b2603",
+    "name": "Terminar app de ratatui para mongodb",
+    "description": "Esta aparte y la tengo que completar con creditos del browser",
+    "state": "progress",
+    "priority": "low",
+    "tag": "personal",
+    "creation_date": "2025-12-06",
+    "finish_date": "2025-12-25",
+    "alert": false
+  },
+  {
+    "id": "193c691f-05df-4125-b04f-37380df73aaa",
+    "name": "Empezar repo para Felicia",
+    "description": "Buscar distintos hostings y agregar a la docu",
+    "state": "done",
+    "priority": "medium",
+    "tag": "personal",
+    "creation_date": "2025-12-06",
+    "finish_date": "2025-12-20",
+    "alert": false
+  },
+  {
+    "id": "5ffd7931-0b19-4e5f-acd7-e3ac05b83625",
+    "name": "Agregar documento para defectos de la casa",
+    "description": "En drive. defecto y foto. pedir mail para enviar. imprimir y hacer firmar.",
+    "state": "done",
+    "priority": "high",
+    "tag": "personal",
+    "creation_date": "2025-12-06",
+    "finish_date": "2025-12-15",
+    "alert": true
+  },
+  {
+    "id": "d5303780-b3c6-40a9-aa1c-2d2e0f2bad63",
+    "name": "averiguar fletes para mudanza",
+    "description": "Hacer un cuadro comparativo",
+    "state": "done",
+    "priority": "high",
+    "tag": "personal",
+    "creation_date": "2025-12-06",
+    "finish_date": "2025-12-08",
+    "alert": true
+  },
+  {
+    "id": "cb09efaa-3ebb-4658-91a6-05dbe5127237",
+    "name": "Armar flujos backend para app base",
+    "description": "",
+    "state": "progress",
+    "priority": "medium",
+    "tag": "work",
+    "creation_date": "2025-12-09",
+    "finish_date": "",
+    "alert": false
+  },
+  {
+    "id": "2b431667-01d1-48b2-89ec-7f228ffa889d",
+    "name": "Buscar caja navideña Telecom",
+    "description": "Diego cala 333 Alto alberdi",
+    "state": "progress",
+    "priority": "critical",
+    "tag": "personal",
+    "creation_date": "2025-12-15",
+    "finish_date": "2025-12-27",
     "alert": true
   }
 ]

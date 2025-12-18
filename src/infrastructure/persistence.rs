@@ -104,6 +104,7 @@ impl CountryJsonRepository {
         let new_country = Country {
             id: uuid::Uuid::new_v4().to_string(),
             name,
+            code: String::new(),
         };
         countries.push(new_country.clone());
         self.save_countries(&countries)?;

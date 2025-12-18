@@ -246,6 +246,8 @@ impl HomeScreen {
             Line::from(""),
             Line::from(Span::styled("🔧 T: Tools", Style::default().fg(Color::Green))),
             Line::from(""),
+            Line::from(Span::styled("📚 D: Docs", Style::default().fg(Color::Blue))),
+            Line::from(""),
         ]);
 
         let paragraph = Paragraph::new(content)
@@ -743,6 +745,15 @@ impl Screen for HomeScreen {
                     self.selected_tool = 0;
                     Ok(ScreenOutcome::Continue)
                 }
+                crossterm::event::KeyCode::Char('d') | crossterm::event::KeyCode::Char('D') => {
+                    self.show_options_popup = false;
+                    self.documentation_focused = true;
+                    self.checks_focused = false;
+                    self.notifications_focused = false;
+                    self.tools_focused = false;
+                    self.selected_doc = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
                 _ => Ok(ScreenOutcome::Continue),
             }
         } else {
@@ -816,6 +827,14 @@ impl Screen for HomeScreen {
                     } else if self.notifications_focused {
                         self.show_notifications_popup = true;
                         Ok(ScreenOutcome::Continue)
+                    } else if self.documentation_focused {
+                        match self.selected_doc {
+                            0 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingArtifacts)),
+                            1 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingDiagrams)),
+                            2 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingMiscellany)),
+                            3 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingFlows)),
+                            _ => Ok(ScreenOutcome::Continue),
+                        }
                     } else if self.tools_focused {
                         match self.selected_tool {
                             0 | 1 => {

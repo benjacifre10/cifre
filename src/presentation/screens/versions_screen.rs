@@ -193,7 +193,7 @@ impl Screen for VersionsScreen {
         }
 
         match key.code {
-            crossterm::event::KeyCode::Esc | crossterm::event::KeyCode::Char('b') => {
+            crossterm::event::KeyCode::Char('b') | crossterm::event::KeyCode::Char('B') => {
                 Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::Home))
             }
             crossterm::event::KeyCode::Char('q') => {

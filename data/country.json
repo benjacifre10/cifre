@@ -2,11 +2,13 @@
   "countries": [
     {
       "id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
-      "name": "Argentina"
+      "name": "Argentina",
+      "code": "arg"
     },
     {
       "id": "8aff7c27-6431-48b1-85b5-accdb824f678",
-      "name": "Paraguay"
+      "name": "Paraguay",
+      "code": "py"
     }
   ]
 }

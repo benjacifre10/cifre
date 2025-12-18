@@ -4,6 +4,14 @@ use crate::presentation::screens::versions_screen::VersionsScreen;
 use crate::presentation::screens::todo_screen::TodoScreen;
 use crate::presentation::screens::releases_screen::ReleasesScreen;
 use crate::presentation::screens::settings_screen::SettingsScreen;
+use crate::presentation::screens::flows_screen::FlowsScreen;
+use crate::presentation::screens::artifacts_screen::ArtifactsScreen;
+use crate::presentation::screens::artifact_description_screen::ArtifactDescriptionScreen;
+use crate::presentation::screens::artifact_hpa_cpu_screen::ArtifactHpaCpuScreen;
+use crate::presentation::screens::artifact_dependencies_screen::ArtifactDependenciesScreen;
+use crate::presentation::screens::artifact_endpoints_screen::ArtifactEndpointsScreen;
+use crate::presentation::screens::diagrams_screen::DiagramsScreen;
+use crate::presentation::screens::miscellany_screen::MiscellanyScreen;
 
 use anyhow::{Context, Result};
 use chrono::{Local, DateTime};
@@ -32,6 +40,14 @@ pub enum AppState {
     ViewingTodo,
     ViewingReleases,
     ViewingSettings,
+    ViewingFlows,
+    ViewingArtifacts,
+    ViewingArtifactDescription(String),
+    ViewingArtifactHpaCpu(String),
+    ViewingArtifactDependencies(String),
+    ViewingArtifactEndpoints(String),
+    ViewingDiagrams,
+    ViewingMiscellany,
     Quit,
 }
 
@@ -97,6 +113,14 @@ impl App {
                                 AppState::ViewingTodo => AllScreens::Todo(TodoScreen::new()),
                                 AppState::ViewingReleases => AllScreens::Releases(ReleasesScreen::new()),
                                 AppState::ViewingSettings => AllScreens::Settings(SettingsScreen::new()),
+                                AppState::ViewingFlows => AllScreens::Flows(FlowsScreen::new()),
+                                AppState::ViewingArtifacts => AllScreens::Artifacts(ArtifactsScreen::new()),
+                                AppState::ViewingArtifactDescription(name) => AllScreens::ArtifactDescription(ArtifactDescriptionScreen::new(name)),
+                                AppState::ViewingArtifactHpaCpu(name) => AllScreens::ArtifactHpaCpu(ArtifactHpaCpuScreen::new(name)),
+                                AppState::ViewingArtifactDependencies(name) => AllScreens::ArtifactDependencies(ArtifactDependenciesScreen::new(name)),
+                                AppState::ViewingArtifactEndpoints(name) => AllScreens::ArtifactEndpoints(ArtifactEndpointsScreen::new(name)),
+                                AppState::ViewingDiagrams => AllScreens::Diagrams(DiagramsScreen::new()),
+                                AppState::ViewingMiscellany => AllScreens::Miscellany(MiscellanyScreen::new()),
                                 AppState::Quit => AllScreens::Home(HomeScreen::new()?),
                             };
                         },
