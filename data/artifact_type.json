@@ -35,6 +35,14 @@
     {
       "id": 9,
       "name": "db-redis"
+    },
+    {
+      "id": 10,
+      "name": "sns"
+    },
+    {
+      "id": 11,
+      "name": "sqs"
     }
   ]
 }

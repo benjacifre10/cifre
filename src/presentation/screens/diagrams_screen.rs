@@ -10,6 +10,7 @@ use ratatui::{
 
 use super::screen::{Screen, ScreenContext, ScreenOutcome};
 use crate::AppState;
+use crate::presentation::components::Notification;
 
 pub struct DiagramsScreen {
     show_options_popup: bool,
@@ -25,6 +26,7 @@ pub struct DiagramsScreen {
     selected_object_type: usize,
     artifact_types: Vec<String>,
     show_load_popup: bool,
+    show_delete_popup: bool,
     available_diagrams: Vec<String>,
     selected_diagram: usize,
     show_add_message_popup: bool,
@@ -51,9 +53,72 @@ pub struct DiagramsScreen {
     diagram_navigation_mode: bool,
     scroll_offset_x: i32,
     scroll_offset_y: i32,
+    max_scroll_x: i32,
+    max_scroll_y: i32,
+    window_width: u16,
+    window_height: u16,
+    // State diagram fields
+    current_diagram_type: String, // "sequence", "state", "flow"
+    show_add_state_popup: bool,
+    state_name_input: String,
+    state_is_final: bool,
+    state_selected_place: usize, // Index for place dropdown
+    current_state_field: usize, // 0: name, 1: final, 2: place
+    state_places: Vec<String>,
+    show_add_transition_popup: bool,
+    transition_label_input: String,
+    selected_from_state: usize,
+    selected_to_state: usize,
+    current_transition_field: usize, // 0: label, 1: from, 2: to
+    available_states: Vec<String>,
+    // Notification system
+    notification: Option<Notification>,
+    // Edit system
+    show_edit_type_popup: bool,
+    selected_edit_type: usize, // 0: State, 1: Transition
+    edit_mode_active: bool,
+    edit_focus_states: bool, // true for states, false for transitions
+    focused_state_index: usize,
+    focused_transition_index: usize,
+    is_editing_transition: bool,
+    is_editing_state: bool,
+    show_reorder_popup: bool,
+    reorder_items: Vec<(String, usize)>, // (name/description, original_order)
+    selected_reorder_item: usize,
+    reorder_mode_objects: bool, // true for objects, false for messages
 }
 
 impl DiagramsScreen {
+    fn load_artifact_types() -> Vec<String> {
+        use std::fs;
+        
+        // Try to load from data file
+        if let Ok(content) = fs::read_to_string("data/artifact_type.json") {
+            if let Ok(data) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(types_array) = data["artifact_types"].as_array() {
+                    let mut types = Vec::new();
+                    for type_obj in types_array {
+                        if let Some(name) = type_obj["name"].as_str() {
+                            types.push(name.to_string());
+                        }
+                    }
+                    if !types.is_empty() {
+                        return types;
+                    }
+                }
+            }
+        }
+        
+        // Fallback to basic default list
+        vec![
+            "ms".to_string(),
+            "lambda".to_string(), 
+            "db".to_string(),
+            "mobile".to_string(),
+            "bff".to_string()
+        ]
+    }
+
     pub fn new() -> Self {
         Self {
             show_options_popup: false,
@@ -67,8 +132,9 @@ impl DiagramsScreen {
             show_add_object_popup: false,
             object_name_input: String::new(),
             selected_object_type: 0,
-            artifact_types: vec!["ms".to_string(), "lambda".to_string(), "db".to_string(), "mobile".to_string(), "bff".to_string()],
+            artifact_types: Self::load_artifact_types(),
             show_load_popup: false,
+            show_delete_popup: false,
             available_diagrams: Vec::new(),
             selected_diagram: 0,
             show_add_message_popup: false,
@@ -95,13 +161,130 @@ impl DiagramsScreen {
             diagram_navigation_mode: false,
             scroll_offset_x: 0,
             scroll_offset_y: 0,
+            max_scroll_x: 0,
+            max_scroll_y: 0,
+            window_width: 0,
+            window_height: 0,
+            current_diagram_type: String::from("sequence"),
+            show_add_state_popup: false,
+            state_name_input: String::new(),
+            state_is_final: false,
+            state_selected_place: 0,
+            current_state_field: 0,
+            state_places: vec![
+                "N: North".to_string(),
+                "NE: NorthEast".to_string(), 
+                "E: East".to_string(),
+                "SE: SouthEast".to_string(),
+                "S: South".to_string(),
+                "SW: SouthWest".to_string(),
+                "W: West".to_string(),
+                "NW: NorthWest".to_string(),
+            ],
+            show_add_transition_popup: false,
+            transition_label_input: String::new(),
+            selected_from_state: 0,
+            selected_to_state: 0,
+            current_transition_field: 0,
+            available_states: Vec::new(),
+            notification: None,
+            show_edit_type_popup: false,
+            selected_edit_type: 0,
+            edit_mode_active: false,
+            edit_focus_states: true,
+            focused_state_index: 0,
+            focused_transition_index: 0,
+            is_editing_transition: false,
+            is_editing_state: false,
+            show_reorder_popup: false,
+            reorder_items: Vec::new(),
+            selected_reorder_item: 0,
+            reorder_mode_objects: false,
         }
     }
 }
 
 impl Screen for DiagramsScreen {
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<ScreenOutcome> {
-        if self.show_export_popup {
+        // CRITICAL: Handle navigation mode FIRST, regardless of other states
+        if self.diagram_navigation_mode {
+            match key.code {
+                KeyCode::Esc => {
+                    self.diagram_navigation_mode = false;
+                    return Ok(ScreenOutcome::Continue);
+                }
+                KeyCode::Char('h') | KeyCode::Char('H') => {
+                    if self.max_scroll_x > 0 {
+                        self.scroll_offset_x = (self.scroll_offset_x + 5).min(self.max_scroll_x - 20); // Left
+                    }
+                    return Ok(ScreenOutcome::Continue);
+                }
+                KeyCode::Char('l') | KeyCode::Char('L') => {
+                    if self.max_scroll_x > 0 {
+                        self.scroll_offset_x = (self.scroll_offset_x - 5).max(-self.max_scroll_x + 20); // Right
+                    }
+                    return Ok(ScreenOutcome::Continue);
+                }
+                KeyCode::Char('k') | KeyCode::Char('K') => {
+                    self.scroll_offset_y = (self.scroll_offset_y + 3).min(50); // Up with safe limit
+                    return Ok(ScreenOutcome::Continue);
+                }
+                KeyCode::Char('j') | KeyCode::Char('J') => {
+                    if self.max_scroll_y > 0 {
+                        let safe_limit = -(self.max_scroll_y - 30).max(0); // Dynamic limit with safety margin
+                        self.scroll_offset_y = (self.scroll_offset_y - 3).max(safe_limit);
+                    }
+                    return Ok(ScreenOutcome::Continue);
+                }
+                _ => return Ok(ScreenOutcome::Continue),
+            }
+        }
+        
+        // DEBUG: Log key presses when in navigation mode
+        if self.diagram_navigation_mode && matches!(key.code, KeyCode::Char('k') | KeyCode::Char('K')) {
+            // This should prevent 'k' from being processed elsewhere
+        }
+        
+        if self.show_reorder_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_reorder_popup = false;
+                    self.reorder_items.clear();
+                    self.selected_reorder_item = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    if !self.reorder_items.is_empty() {
+                        self.selected_reorder_item = (self.selected_reorder_item + 1) % self.reorder_items.len();
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    if !self.reorder_items.is_empty() {
+                        self.selected_reorder_item = if self.selected_reorder_item == 0 { 
+                            self.reorder_items.len() - 1 
+                        } else { 
+                            self.selected_reorder_item - 1 
+                        };
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    if !self.reorder_items.is_empty() && self.selected_reorder_item < self.reorder_items.len() {
+                        if self.reorder_mode_objects {
+                            self.reorder_objects();
+                        } else {
+                            self.reorder_messages();
+                        }
+                        self.show_reorder_popup = false;
+                        self.reorder_items.clear();
+                        self.selected_reorder_item = 0;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_export_popup {
             match key.code {
                 KeyCode::Esc => {
                     self.show_export_popup = false;
@@ -214,6 +397,10 @@ impl Screen for DiagramsScreen {
                         self.selected_from_object = (self.selected_from_object + 1) % self.available_objects.len();
                     } else if self.current_message_field == 2 && !self.available_objects.is_empty() { // to dropdown
                         self.selected_to_object = (self.selected_to_object + 1) % self.available_objects.len();
+                    } else if self.current_message_field == 0 { // description field - allow typing 'j'
+                        self.message_description_input.push('j');
+                    } else if self.current_message_field == 3 { // notes field - allow typing 'j'
+                        self.message_notes_input.push('j');
                     }
                     Ok(ScreenOutcome::Continue)
                 }
@@ -230,6 +417,10 @@ impl Screen for DiagramsScreen {
                         } else { 
                             self.selected_to_object - 1 
                         };
+                    } else if self.current_message_field == 0 { // description field - allow typing 'k'
+                        self.message_description_input.push('k');
+                    } else if self.current_message_field == 3 { // notes field - allow typing 'k'
+                        self.message_notes_input.push('k');
                     }
                     Ok(ScreenOutcome::Continue)
                 }
@@ -274,16 +465,20 @@ impl Screen for DiagramsScreen {
                     Ok(ScreenOutcome::Continue)
                 }
                 KeyCode::Char('j') => {
-                    // j/k always work on the currently focused field
+                    // j/k only work on dropdown fields (1=from, 2=to), not text fields (0=description, 3=notes)
                     if self.current_message_field == 1 && !self.available_objects.is_empty() { // from dropdown
                         self.selected_from_object = (self.selected_from_object + 1) % self.available_objects.len();
                     } else if self.current_message_field == 2 && !self.available_objects.is_empty() { // to dropdown
                         self.selected_to_object = (self.selected_to_object + 1) % self.available_objects.len();
+                    } else if self.current_message_field == 0 { // description field - allow typing 'j'
+                        self.message_description_input.push('j');
+                    } else if self.current_message_field == 3 { // notes field - allow typing 'j'
+                        self.message_notes_input.push('j');
                     }
                     Ok(ScreenOutcome::Continue)
                 }
                 KeyCode::Char('k') => {
-                    // j/k always work on the currently focused field
+                    // j/k only work on dropdown fields (1=from, 2=to), not text fields (0=description, 3=notes)
                     if self.current_message_field == 1 && !self.available_objects.is_empty() { // from dropdown
                         self.selected_from_object = if self.selected_from_object == 0 { 
                             self.available_objects.len() - 1 
@@ -296,6 +491,10 @@ impl Screen for DiagramsScreen {
                         } else { 
                             self.selected_to_object - 1 
                         };
+                    } else if self.current_message_field == 0 { // description field - allow typing 'k'
+                        self.message_description_input.push('k');
+                    } else if self.current_message_field == 3 { // notes field - allow typing 'k'
+                        self.message_notes_input.push('k');
                     }
                     Ok(ScreenOutcome::Continue)
                 }
@@ -353,11 +552,64 @@ impl Screen for DiagramsScreen {
                 }
                 KeyCode::Enter => {
                     if !self.available_diagrams.is_empty() && self.selected_diagram < self.available_diagrams.len() {
-                        self.current_diagram_name = self.available_diagrams[self.selected_diagram].clone();
+                        let selected_display_name = &self.available_diagrams[self.selected_diagram];
+                        // Extract just the diagram name (before the parentheses)
+                        let diagram_name = if let Some(pos) = selected_display_name.find(" (") {
+                            selected_display_name[..pos].to_string()
+                        } else {
+                            selected_display_name.clone()
+                        };
+                        
+                        self.current_diagram_name = diagram_name;
+                        // Detect diagram type from loaded file
+                        self.current_diagram_type = self.get_diagram_type();
                         self.show_load_popup = false;
                         self.available_diagrams.clear();
                         self.selected_diagram = 0;
                         self.show_sequence_canvas = true;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_delete_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_delete_popup = false;
+                    self.available_diagrams.clear();
+                    self.selected_diagram = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    if !self.available_diagrams.is_empty() {
+                        self.selected_diagram = (self.selected_diagram + 1) % self.available_diagrams.len();
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    if !self.available_diagrams.is_empty() {
+                        self.selected_diagram = if self.selected_diagram == 0 { 
+                            self.available_diagrams.len() - 1 
+                        } else { 
+                            self.selected_diagram - 1 
+                        };
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    if !self.available_diagrams.is_empty() && self.selected_diagram < self.available_diagrams.len() {
+                        let selected_display_name = &self.available_diagrams[self.selected_diagram];
+                        // Extract just the diagram name (before the parentheses)
+                        let diagram_name = if let Some(pos) = selected_display_name.find(" (") {
+                            selected_display_name[..pos].to_string()
+                        } else {
+                            selected_display_name.clone()
+                        };
+                        
+                        self.delete_diagram(&diagram_name);
+                        self.show_delete_popup = false;
+                        self.available_diagrams.clear();
+                        self.selected_diagram = 0;
                     }
                     Ok(ScreenOutcome::Continue)
                 }
@@ -407,6 +659,247 @@ impl Screen for DiagramsScreen {
                 }
                 _ => Ok(ScreenOutcome::Continue),
             }
+        } else if self.show_add_state_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_add_state_popup = false;
+                    self.state_name_input.clear();
+                    self.state_is_final = false;
+                    self.state_selected_place = 0;
+                    self.current_state_field = 0;
+                    self.is_editing_state = false;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Tab => {
+                    self.current_state_field = (self.current_state_field + 1) % 3; // 3 fields: name, final, place
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    if self.current_state_field == 2 { // Only in place field
+                        self.state_selected_place = (self.state_selected_place + 1) % self.state_places.len();
+                    } else if self.current_state_field == 0 { // In name field, allow typing 'j'
+                        self.state_name_input.push('j');
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    if self.current_state_field == 2 { // Only in place field
+                        self.state_selected_place = if self.state_selected_place == 0 { 
+                            self.state_places.len() - 1 
+                        } else { 
+                            self.state_selected_place - 1 
+                        };
+                    } else if self.current_state_field == 0 { // In name field, allow typing 'k'
+                        self.state_name_input.push('k');
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char(' ') => {
+                    if self.current_state_field == 1 { // In final field, toggle with space
+                        self.state_is_final = !self.state_is_final;
+                    } else if self.current_state_field == 0 { // In name field, allow typing space
+                        self.state_name_input.push(' ');
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char(c) => {
+                    if self.current_state_field == 0 { // Only in name field
+                        self.state_name_input.push(c);
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Backspace => {
+                    if self.current_state_field == 0 { // Only in name field
+                        self.state_name_input.pop();
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    if !self.state_name_input.is_empty() {
+                        self.save_state_to_diagram();
+                        self.show_add_state_popup = false;
+                        self.state_name_input.clear();
+                        self.state_is_final = false;
+                        self.state_selected_place = 0;
+                        self.current_state_field = 0;
+                        self.is_editing_state = false;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_add_transition_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_add_transition_popup = false;
+                    self.transition_label_input.clear();
+                    self.current_transition_field = 0;
+                    self.is_editing_transition = false;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Tab => {
+                    self.current_transition_field = (self.current_transition_field + 1) % 3;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    if self.current_transition_field == 1 && !self.available_states.is_empty() {
+                        // From field
+                        self.selected_from_state = (self.selected_from_state + 1) % self.available_states.len();
+                    } else if self.current_transition_field == 2 && !self.available_states.is_empty() {
+                        // To field
+                        self.selected_to_state = (self.selected_to_state + 1) % self.available_states.len();
+                    } else if self.current_transition_field == 0 {
+                        // Label field - allow typing 'j'
+                        self.transition_label_input.push('j');
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    if self.current_transition_field == 1 && !self.available_states.is_empty() {
+                        // From field
+                        self.selected_from_state = if self.selected_from_state == 0 { 
+                            self.available_states.len() - 1 
+                        } else { 
+                            self.selected_from_state - 1 
+                        };
+                    } else if self.current_transition_field == 2 && !self.available_states.is_empty() {
+                        // To field
+                        self.selected_to_state = if self.selected_to_state == 0 { 
+                            self.available_states.len() - 1 
+                        } else { 
+                            self.selected_to_state - 1 
+                        };
+                    } else if self.current_transition_field == 0 {
+                        // Label field - allow typing 'k'
+                        self.transition_label_input.push('k');
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char(c) => {
+                    if self.current_transition_field == 0 {
+                        // Only allow typing in label field
+                        self.transition_label_input.push(c);
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Backspace => {
+                    if self.current_transition_field == 0 {
+                        // Only allow backspace in label field
+                        self.transition_label_input.pop();
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    if !self.transition_label_input.is_empty() && !self.available_states.is_empty() {
+                        self.save_transition_to_diagram();
+                        self.show_add_transition_popup = false;
+                        self.transition_label_input.clear();
+                        self.current_transition_field = 0;
+                        self.is_editing_transition = false;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.show_edit_type_popup {
+            match key.code {
+                KeyCode::Esc => {
+                    self.show_edit_type_popup = false;
+                    self.selected_edit_type = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('j') => {
+                    self.selected_edit_type = (self.selected_edit_type + 1) % 2;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('k') => {
+                    self.selected_edit_type = if self.selected_edit_type == 0 { 1 } else { 0 };
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Enter => {
+                    self.show_edit_type_popup = false;
+                    
+                    if self.current_diagram_type == "state" {
+                        self.edit_mode_active = true;
+                        self.edit_focus_states = self.selected_edit_type == 0;
+                        self.focused_state_index = 0;
+                        self.focused_transition_index = 0;
+                    } else {
+                        // For sequence diagrams: 0 = Objects, 1 = Messages
+                        if self.selected_edit_type == 0 {
+                            // Edit objects
+                            let objects = self.load_diagram_objects();
+                            if !objects.is_empty() {
+                                self.view_objects_mode = true;
+                                self.focused_object_index = 0;
+                            }
+                        } else {
+                            // Edit messages
+                            let messages = self.load_diagram_messages();
+                            if !messages.is_empty() {
+                                self.view_messages_mode = true;
+                                self.focused_message_index = 0;
+                            }
+                        }
+                    }
+                    
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
+        } else if self.edit_mode_active {
+            match key.code {
+                KeyCode::Esc => {
+                    self.edit_mode_active = false;
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Tab => {
+                    if self.edit_focus_states {
+                        let states = self.load_diagram_states();
+                        if !states.is_empty() {
+                            self.focused_state_index = (self.focused_state_index + 1) % states.len();
+                        }
+                    } else {
+                        let transitions = self.load_diagram_transitions();
+                        if !transitions.is_empty() {
+                            self.focused_transition_index = (self.focused_transition_index + 1) % transitions.len();
+                        }
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('e') | KeyCode::Char('E') => {
+                    if !self.edit_focus_states {
+                        // Edit transition
+                        let transitions = self.load_diagram_transitions();
+                        if self.focused_transition_index < transitions.len() {
+                            let transition = &transitions[self.focused_transition_index];
+                            self.load_transition_for_edit(transition);
+                            self.is_editing_transition = true;
+                            self.show_add_transition_popup = true;
+                        }
+                    } else {
+                        // Edit state
+                        let states = self.load_diagram_states();
+                        if self.focused_state_index < states.len() {
+                            let state = &states[self.focused_state_index];
+                            self.load_state_for_edit(state);
+                            self.show_add_state_popup = true;
+                        }
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    if !self.edit_focus_states {
+                        // Delete transition
+                        self.delete_focused_transition();
+                    } else {
+                        // Delete state and associated transitions
+                        self.delete_focused_state();
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
+                _ => Ok(ScreenOutcome::Continue),
+            }
         } else if self.show_diagram_name_popup {
             match key.code {
                 KeyCode::Esc => {
@@ -436,6 +929,7 @@ impl Screen for DiagramsScreen {
                 _ => Ok(ScreenOutcome::Continue),
             }
         } else if self.show_sequence_canvas {
+            // CRITICAL: Navigation mode must be checked FIRST to prevent key conflicts
             if self.diagram_navigation_mode {
                 match key.code {
                     KeyCode::Esc => {
@@ -443,29 +937,29 @@ impl Screen for DiagramsScreen {
                         Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Char('h') | KeyCode::Char('H') => {
-                        if self.diagram_needs_horizontal_scroll() {
-                            self.scroll_offset_x = (self.scroll_offset_x - 5).max(-100);
+                        if self.max_scroll_x > 0 {
+                            self.scroll_offset_x = (self.scroll_offset_x + 5).min(self.max_scroll_x - 20); // Left
                         }
                         Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Char('l') | KeyCode::Char('L') => {
-                        if self.diagram_needs_horizontal_scroll() {
-                            self.scroll_offset_x = (self.scroll_offset_x + 5).min(100);
+                        if self.max_scroll_x > 0 {
+                            self.scroll_offset_x = (self.scroll_offset_x - 5).max(-self.max_scroll_x + 20); // Right
                         }
                         Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Char('k') | KeyCode::Char('K') => {
-                        if self.diagram_needs_vertical_scroll() {
-                            self.scroll_offset_y = (self.scroll_offset_y - 3).max(-50);
-                        }
+                        self.scroll_offset_y = (self.scroll_offset_y + 3).min(50); // Up with safe limit
                         Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Char('j') | KeyCode::Char('J') => {
-                        if self.diagram_needs_vertical_scroll() {
-                            self.scroll_offset_y = (self.scroll_offset_y + 3).min(50);
+                        if self.max_scroll_y > 0 {
+                            let safe_limit = -(self.max_scroll_y - 30).max(0); // Dynamic limit with safety margin
+                            self.scroll_offset_y = (self.scroll_offset_y - 3).max(safe_limit);
                         }
                         Ok(ScreenOutcome::Continue)
                     }
+                    // Consume ALL other keys in navigation mode to prevent conflicts
                     _ => Ok(ScreenOutcome::Continue),
                 }
             } else if self.view_objects_mode || self.view_messages_mode {
@@ -556,6 +1050,14 @@ impl Screen for DiagramsScreen {
                         }
                         Ok(ScreenOutcome::Continue)
                     }
+                    KeyCode::Char('r') | KeyCode::Char('R') => {
+                        if self.view_objects_mode {
+                            self.prepare_reorder_objects();
+                        } else if self.view_messages_mode {
+                            self.prepare_reorder_messages();
+                        }
+                        Ok(ScreenOutcome::Continue)
+                    }
                     _ => Ok(ScreenOutcome::Continue),
                 }
             } else {
@@ -565,39 +1067,66 @@ impl Screen for DiagramsScreen {
                         self.show_sequence_canvas = false;
                         Ok(ScreenOutcome::Continue)
                     }
-                    KeyCode::Char('a') | KeyCode::Char('A') => {
-                        self.show_add_object_popup = true;
-                        self.object_name_input.clear();
-                        self.selected_object_type = 0;
-                        Ok(ScreenOutcome::Continue)
-                    }
-                    KeyCode::Char('l') | KeyCode::Char('L') => {
-                        self.load_available_objects();
-                        if !self.available_objects.is_empty() {
-                            self.show_add_message_popup = true;
-                            self.message_description_input.clear();
-                            self.message_notes_input.clear();
-                            self.selected_from_object = 0;
-                            self.selected_to_object = 0;
-                            self.current_message_field = 0;
-                        }
-                        Ok(ScreenOutcome::Continue)
-                    }
                     KeyCode::Char('o') | KeyCode::Char('O') => {
-                        let objects = self.load_diagram_objects();
-                        if !objects.is_empty() {
-                            self.view_objects_mode = true;
-                            self.focused_object_index = 0;
+                        if self.current_diagram_type == "state" {
+                            // In state diagrams, 'O' does nothing
+                            Ok(ScreenOutcome::Continue)
+                        } else {
+                            self.show_add_object_popup = true;
+                            self.object_name_input.clear();
+                            self.selected_object_type = 0;
+                            Ok(ScreenOutcome::Continue)
                         }
+                    }
+                    KeyCode::Char('s') | KeyCode::Char('S') => {
+                        if self.current_diagram_type == "state" {
+                            self.show_add_state_popup = true;
+                            self.state_name_input.clear();
+                            self.is_editing_state = false;
+                            Ok(ScreenOutcome::Continue)
+                        } else {
+                            Ok(ScreenOutcome::Continue)
+                        }
+                    }
+                    KeyCode::Char('t') | KeyCode::Char('T') => {
+                        if self.current_diagram_type == "state" {
+                            self.load_available_states();
+                            if self.available_states.len() >= 2 {
+                                self.show_add_transition_popup = true;
+                                self.transition_label_input.clear();
+                                self.selected_from_state = 0;
+                                self.selected_to_state = 0;
+                                self.current_transition_field = 0;
+                                self.is_editing_transition = false;
+                            } else {
+                                // TODO: Show error message - need at least 2 states
+                            }
+                            Ok(ScreenOutcome::Continue)
+                        } else {
+                            Ok(ScreenOutcome::Continue)
+                        }
+                    }
+                    KeyCode::Char('e') | KeyCode::Char('E') => {
+                        self.show_edit_type_popup = true;
+                        self.selected_edit_type = 0;
                         Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Char('m') | KeyCode::Char('M') => {
-                        let messages = self.load_diagram_messages();
-                        if !messages.is_empty() {
-                            self.view_messages_mode = true;
-                            self.focused_message_index = 0;
+                        if self.current_diagram_type == "state" {
+                            // In state diagrams, 'M' does nothing
+                            Ok(ScreenOutcome::Continue)
+                        } else {
+                            self.load_available_objects();
+                            if !self.available_objects.is_empty() {
+                                self.show_add_message_popup = true;
+                                self.message_description_input.clear();
+                                self.message_notes_input.clear();
+                                self.selected_from_object = 0;
+                                self.selected_to_object = 0;
+                                self.current_message_field = 0;
+                            }
+                            Ok(ScreenOutcome::Continue)
                         }
-                        Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Char('p') | KeyCode::Char('P') => {
                         self.show_export_popup = true;
@@ -605,7 +1134,11 @@ impl Screen for DiagramsScreen {
                         Ok(ScreenOutcome::Continue)
                     }
                     KeyCode::Tab => {
+                        // Force navigation mode activation
                         self.diagram_navigation_mode = true;
+                        // Reset any conflicting modes
+                        self.view_objects_mode = false;
+                        self.view_messages_mode = false;
                         Ok(ScreenOutcome::Continue)
                     }
                     _ => Ok(ScreenOutcome::Continue),
@@ -635,7 +1168,12 @@ impl Screen for DiagramsScreen {
                             self.diagram_name_input.clear();
                         }
                         1 => {
-                            // TODO: Create State diagram
+                            // Create State diagram
+                            self.show_diagram_type_popup = false;
+                            self.selected_diagram_type = 0;
+                            self.show_diagram_name_popup = true;
+                            self.diagram_name_input.clear();
+                            self.current_diagram_type = String::from("state");
                         }
                         2 => {
                             // TODO: Create Flow diagram
@@ -654,11 +1192,11 @@ impl Screen for DiagramsScreen {
                     Ok(ScreenOutcome::Continue)
                 }
                 KeyCode::Char('j') => {
-                    self.selected_option = (self.selected_option + 1) % 2;
+                    self.selected_option = (self.selected_option + 1) % 3;
                     Ok(ScreenOutcome::Continue)
                 }
                 KeyCode::Char('k') => {
-                    self.selected_option = if self.selected_option == 0 { 1 } else { self.selected_option - 1 };
+                    self.selected_option = if self.selected_option == 0 { 2 } else { self.selected_option - 1 };
                     Ok(ScreenOutcome::Continue)
                 }
                 KeyCode::Enter => {
@@ -675,6 +1213,16 @@ impl Screen for DiagramsScreen {
                                 self.show_options_popup = false;
                                 self.selected_option = 0;
                                 self.show_load_popup = true;
+                                self.selected_diagram = 0;
+                            }
+                        }
+                        2 => {
+                            // Delete option - show available diagrams
+                            self.load_available_diagrams();
+                            if !self.available_diagrams.is_empty() {
+                                self.show_options_popup = false;
+                                self.selected_option = 0;
+                                self.show_delete_popup = true;
                                 self.selected_diagram = 0;
                             }
                         }
@@ -699,6 +1247,17 @@ impl Screen for DiagramsScreen {
                     }
                     Ok(ScreenOutcome::Continue)
                 }
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    // Delete option - show available diagrams
+                    self.load_available_diagrams();
+                    if !self.available_diagrams.is_empty() {
+                        self.show_options_popup = false;
+                        self.selected_option = 0;
+                        self.show_delete_popup = true;
+                        self.selected_diagram = 0;
+                    }
+                    Ok(ScreenOutcome::Continue)
+                }
                 _ => Ok(ScreenOutcome::Continue),
             }
         } else {
@@ -717,14 +1276,19 @@ impl Screen for DiagramsScreen {
     }
 
     fn draw(&mut self, f: &mut Frame, _context: &ScreenContext) {
+        // Update scroll bounds based on current window size
         if self.show_sequence_canvas {
+            let area = f.size();
+            self.update_scroll_bounds(area);
             self.draw_sequence_canvas(f);
         } else {
             self.draw_main_screen(f);
         }
 
         // Draw popups
-        if self.show_export_popup {
+        if self.show_reorder_popup {
+            self.draw_reorder_popup(f);
+        } else if self.show_export_popup {
             self.draw_export_popup(f);
         } else if self.show_delete_confirmation_popup {
             self.draw_delete_confirmation_popup(f);
@@ -738,8 +1302,16 @@ impl Screen for DiagramsScreen {
             self.draw_add_message_popup(f);
         } else if self.show_load_popup {
             self.draw_load_popup(f);
+        } else if self.show_delete_popup {
+            self.draw_delete_popup(f);
         } else if self.show_add_object_popup {
             self.draw_add_object_popup(f);
+        } else if self.show_add_state_popup {
+            self.draw_add_state_popup(f);
+        } else if self.show_add_transition_popup {
+            self.draw_add_transition_popup(f);
+        } else if self.show_edit_type_popup {
+            self.draw_edit_type_popup(f);
         } else if self.show_diagram_name_popup {
             self.draw_diagram_name_popup(f);
         } else if self.show_options_popup {
@@ -747,6 +1319,9 @@ impl Screen for DiagramsScreen {
         } else if self.show_diagram_type_popup {
             self.draw_diagram_type_popup(f);
         }
+        
+        // Draw notification on top of everything
+        self.draw_notification(f, f.size());
     }
 }
 
@@ -787,7 +1362,7 @@ impl DiagramsScreen {
         f.render_widget(menu_text, main_layout[1]);
     }
 
-    fn draw_sequence_canvas(&self, f: &mut Frame) {
+    fn draw_sequence_canvas(&mut self, f: &mut Frame) {
         let main_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(0), Constraint::Length(3), Constraint::Length(3)])
@@ -814,12 +1389,22 @@ impl DiagramsScreen {
         // Submenu area
         let submenu_text = if self.diagram_navigation_mode {
             "Navigation Mode - h/j/k/l: Move | Esc: Exit"
+        } else if self.edit_mode_active && self.current_diagram_type == "state" {
+            if self.edit_focus_states {
+                "E: Edit | D: Delete | Tab: Next | Esc: Exit"
+            } else {
+                "E: Edit | D: Delete | Tab: Next | Esc: Exit"
+            }
         } else if self.view_objects_mode {
-            "E: Edit | D: Delete | Tab: Next | Esc: Exit"
+            "E: Edit | D: Delete | R: Reorder | Tab: Next | Esc: Exit"
         } else if self.view_messages_mode {
-            "E: Edit | D: Delete | Tab: Next | Esc: Exit"
+            "E: Edit | D: Delete | R: Reorder | Tab: Next | Esc: Exit"
         } else {
-            "A: Add Object | L: Link Message | O: View Objects | M: View Messages | P: Print | Tab: Navigate"
+            if self.current_diagram_type == "state" {
+                "S: Add State | T: Add Transition | E: Edit | P: Print | Tab: Navigate"
+            } else {
+                "O: Add Object | M: Add Message | E: Edit | P: Print | Tab: Navigate"
+            }
         };
         
         let submenu = Paragraph::new(submenu_text)
@@ -850,7 +1435,17 @@ impl DiagramsScreen {
         f.render_widget(menu_text, main_layout[2]);
     }
 
-    fn draw_canvas_content(&self, f: &mut Frame, area: Rect, block: Block) {
+    fn draw_canvas_content(&mut self, f: &mut Frame, area: Rect, block: Block) {
+        let diagram_type = self.get_diagram_type();
+        
+        if diagram_type == "state" {
+            self.draw_state_diagram_content(f, area, block);
+        } else {
+            self.draw_sequence_diagram_content(f, area, block);
+        }
+    }
+
+    fn draw_sequence_diagram_content(&mut self, f: &mut Frame, area: Rect, block: Block) {
         let objects = self.load_diagram_objects();
         
         if objects.is_empty() {
@@ -887,23 +1482,29 @@ impl DiagramsScreen {
         let total_width = total_objects * object_width + (total_objects.saturating_sub(1)) * spacing;
         let available_width = inner_area.width as usize;
 
-        if total_width > available_width {
-            let content = Paragraph::new(format!("{} objects (use horizontal scroll)", total_objects))
-                .alignment(Alignment::Center);
-            f.render_widget(content, inner_area);
-            return;
-        }
-
-        // Calculate object positions
-        let start_x = (available_width - total_width) / 2;
+        // Calculate object positions - always render all objects, even if they overflow
+        let start_x = if total_width > available_width {
+            0 // Start from left edge if overflowing
+        } else {
+            (available_width - total_width) / 2 // Center if fits
+        };
         let mut object_positions = Vec::new();
         
         // Draw objects and store their positions
         for (i, obj) in objects.iter().enumerate() {
             let x = start_x + i * (object_width + spacing);
+            let calc_x = inner_area.x as i32 + x as i32 + self.scroll_offset_x;
+            let calc_y = inner_area.y as i32; // Objects stay fixed, don't scroll vertically
+            
+            // Ensure coordinates are within window bounds
+            if calc_x < -(object_width as i32) || calc_x > (inner_area.width as i32) ||
+               calc_y < -(object_height as i32) || calc_y > (inner_area.height as i32) {
+                continue; // Skip objects that are completely off-screen
+            }
+            
             let obj_area = Rect {
-                x: (inner_area.x as i32 + x as i32 + self.scroll_offset_x).max(inner_area.x as i32) as u16,
-                y: (inner_area.y as i32 + self.scroll_offset_y).max(inner_area.y as i32) as u16,
+                x: calc_x.max(0).min(inner_area.width as i32) as u16,
+                y: calc_y.max(0).min(inner_area.height as i32) as u16,
                 width: object_width as u16,
                 height: object_height,
             };
@@ -917,15 +1518,27 @@ impl DiagramsScreen {
         }
 
         // Draw lifelines (dotted vertical lines below objects)
-        let lifeline_start_y = (inner_area.y as i32 + object_height as i32 + self.scroll_offset_y).max(inner_area.y as i32) as u16;
+        let calc_lifeline_y = inner_area.y as i32 + object_height as i32; // Lifelines start fixed below objects
+        let lifeline_start_y = calc_lifeline_y.max(0).min(inner_area.height as i32) as u16;
         let lifeline_height = inner_area.height.saturating_sub(object_height);
         
         for (_, center_x) in &object_positions {
+            // Skip lifelines that are outside the visible area
+            if *center_x >= inner_area.x + inner_area.width || *center_x < inner_area.x {
+                continue;
+            }
+            
             for y in 0..lifeline_height {
                 if y % 2 == 0 { // Dotted line effect
+                    let line_y = lifeline_start_y + y;
+                    // Skip if line is outside visible area
+                    if line_y >= inner_area.y + inner_area.height || line_y < inner_area.y {
+                        continue;
+                    }
+                    
                     let cell_area = Rect {
                         x: *center_x,
-                        y: lifeline_start_y + y,
+                        y: line_y,
                         width: 1,
                         height: 1,
                     };
@@ -935,9 +1548,9 @@ impl DiagramsScreen {
             }
         }
 
-        // Draw messages
+        // Draw messages with minimal spacing
         let messages = self.load_diagram_messages();
-        let message_spacing = 4; // Increased spacing for self-calls
+        let mut current_y_offset = 2; // Start offset from lifeline
         
         for (i, message) in messages.iter().enumerate() {
             let from_name = message["from"].as_str().unwrap_or("");
@@ -945,22 +1558,212 @@ impl DiagramsScreen {
             let description = message["description"].as_str().unwrap_or("");
             let order = message["order"].as_u64().unwrap_or((i + 1) as u64);
             
+            // Calculate spacing for this message FIRST
+            let message_spacing = if from_name == to_name { 6 } else { 4 }; // Reduced spacing
+            
             // Find object positions
             let from_pos = object_positions.iter().find(|(name, _)| name == from_name);
             let to_pos = object_positions.iter().find(|(name, _)| name == to_name);
             
             if let (Some((_, from_x)), Some((_, to_x))) = (from_pos, to_pos) {
-                let message_y = lifeline_start_y + 2 + (i * message_spacing) as u16;
+                let calc_message_y = lifeline_start_y as i32 + current_y_offset + self.scroll_offset_y;
+                let message_y = calc_message_y.max(0) as u16; // Don't limit to inner_area.height
                 
-                if message_y < inner_area.y + inner_area.height - 3 { // -3 for self-call height
+                // Only render if message is within visible bounds
+                if calc_message_y >= (inner_area.y as i32 - 50) && calc_message_y < (inner_area.y + inner_area.height + 50) as i32 {
                     let is_focused = self.view_messages_mode && i == self.focused_message_index;
-                    self.draw_message_arrow(f, *from_x, *to_x, message_y, description, order, is_focused);
+                    self.draw_message_arrow(f, *from_x, *to_x, message_y, description, order, is_focused, inner_area);
                 }
+            }
+            
+            // ALWAYS increment offset for next message
+            current_y_offset += message_spacing;
+        }
+    }
+
+    fn draw_state_diagram_content(&mut self, f: &mut Frame, area: Rect, block: Block) {
+        let states = self.load_diagram_states();
+        
+        if states.is_empty() {
+            let content = Paragraph::new("No states yet. Press S to add states.")
+                .alignment(Alignment::Center)
+                .block(block);
+            f.render_widget(content, area);
+            return;
+        }
+
+        // Draw the main block first
+        f.render_widget(block, area);
+        
+        // Inner area for content
+        let inner_area = Rect {
+            x: area.x + 1,
+            y: area.y + 1,
+            width: area.width.saturating_sub(2),
+            height: area.height.saturating_sub(2),
+        };
+
+        // Sort states by order
+        let mut sorted_states = states.clone();
+        sorted_states.sort_by(|a, b| {
+            let order_a = a["order"].as_u64().unwrap_or(0);
+            let order_b = b["order"].as_u64().unwrap_or(0);
+            order_a.cmp(&order_b)
+        });
+        
+        let mut state_positions: Vec<(String, u16, u16)> = Vec::new();
+        
+        // Position states based on order and place
+        for (i, state) in sorted_states.iter().enumerate() {
+            let name = state["name"].as_str().unwrap_or("Unknown");
+            let is_final = state["is_final"].as_bool().unwrap_or(false);
+            let place = state["place"].as_str().unwrap_or("N");
+            
+            let (state_x, state_y) = if i == 0 {
+                // First state goes in center
+                (inner_area.x + inner_area.width / 2, inner_area.y + inner_area.height / 2)
+            } else {
+                // Position relative to previous state
+                let prev_pos = &state_positions[i - 1];
+                let (prev_x, prev_y) = (prev_pos.1, prev_pos.2);
+                let offset = 15; // Distance between states
+                
+                match place {
+                    "N" => (prev_x, prev_y.saturating_sub(offset)),
+                    "NE" => (prev_x + offset, prev_y.saturating_sub(offset)),
+                    "E" => (prev_x + offset, prev_y),
+                    "SE" => (prev_x + offset, prev_y + offset),
+                    "S" => (prev_x, prev_y + offset),
+                    "SW" => (prev_x.saturating_sub(offset), prev_y + offset),
+                    "W" => (prev_x.saturating_sub(offset), prev_y),
+                    "NW" => (prev_x.saturating_sub(offset), prev_y.saturating_sub(offset)),
+                    _ => (prev_x + offset, prev_y), // Default to East
+                }
+            };
+            
+            let state_area = Rect {
+                x: (state_x as i32 - 6).max(inner_area.x as i32) as u16,
+                y: (state_y as i32 - 2).max(inner_area.y as i32) as u16,
+                width: 12,
+                height: 4,
+            };
+            
+            let is_focused = self.edit_mode_active && self.edit_focus_states && i == self.focused_state_index;
+            
+            self.draw_single_state(f, state_area, name, is_focused, is_final);
+            state_positions.push((name.to_string(), state_x, state_y));
+        }
+        
+        // Draw transitions
+        let transitions = self.load_diagram_transitions();
+        for (i, transition) in transitions.iter().enumerate() {
+            let from_name = transition["from"].as_str().unwrap_or("");
+            let to_name = transition["to"].as_str().unwrap_or("");
+            let label = transition["label"].as_str().unwrap_or("");
+            
+            let from_pos = state_positions.iter().find(|(name, _, _)| name == from_name);
+            let to_pos = state_positions.iter().find(|(name, _, _)| name == to_name);
+            
+            if let (Some((_, from_x, from_y)), Some((_, to_x, to_y))) = (from_pos, to_pos) {
+                let is_focused = self.edit_mode_active && !self.edit_focus_states && i == self.focused_transition_index;
+                self.draw_transition_arrow(f, *from_x, *from_y, *to_x, *to_y, label, inner_area, is_focused);
             }
         }
     }
 
-    fn draw_message_arrow(&self, f: &mut Frame, from_x: u16, to_x: u16, y: u16, description: &str, order: u64, is_focused: bool) {
+    fn draw_single_state(&self, f: &mut Frame, area: Rect, name: &str, is_focused: bool, is_final: bool) {
+        let color = if is_focused { Color::Gray } else { Color::Blue };
+        let bg_color = if is_final { Some(Color::DarkGray) } else { None };
+        
+        let border_type = if is_final { 
+            ratatui::widgets::BorderType::Double 
+        } else { 
+            ratatui::widgets::BorderType::Rounded 
+        };
+        
+        // Calculate required height for multi-line text
+        let max_width = area.width.saturating_sub(2) as usize;
+        let lines = self.split_text_into_lines(name, max_width);
+        let required_height = (lines.len() + 2).max(4); // +2 for borders, minimum 4
+        
+        // Adjust area height if needed
+        let adjusted_area = Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: required_height as u16,
+        };
+        
+        let mut block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(color))
+            .border_type(border_type);
+            
+        if let Some(bg) = bg_color {
+            block = block.style(Style::default().bg(bg));
+        }
+        
+        // Create multi-line content
+        let content = lines.join("\n");
+        
+        let paragraph = Paragraph::new(content)
+            .alignment(Alignment::Center)
+            .block(block);
+        
+        f.render_widget(paragraph, adjusted_area);
+    }
+
+    fn draw_transition_arrow(&self, f: &mut Frame, from_x: u16, from_y: u16, to_x: u16, to_y: u16, label: &str, area: Rect, is_focused: bool) {
+        // Simple line for now - could be enhanced with curves
+        let arrow_color = if is_focused { Color::Red } else { Color::Yellow };
+        
+        // Draw a simple horizontal/vertical line based on direction
+        if from_x == to_x {
+            // Vertical line
+            let start_y = from_y.min(to_y);
+            let end_y = from_y.max(to_y);
+            for y in start_y..=end_y {
+                if y >= area.y && y < area.y + area.height && from_x >= area.x && from_x < area.x + area.width {
+                    let line_area = Rect { x: from_x, y, width: 1, height: 1 };
+                    let line_char = if y == end_y { if from_y < to_y { "v" } else { "^" } } else { "|" };
+                    let line = Paragraph::new(line_char).style(Style::default().fg(arrow_color));
+                    f.render_widget(line, line_area);
+                }
+            }
+        } else {
+            // Horizontal line
+            let start_x = from_x.min(to_x);
+            let end_x = from_x.max(to_x);
+            for x in start_x..=end_x {
+                if x >= area.x && x < area.x + area.width && from_y >= area.y && from_y < area.y + area.height {
+                    let line_area = Rect { x, y: from_y, width: 1, height: 1 };
+                    let line_char = if x == end_x { if from_x < to_x { ">" } else { "<" } } else { "-" };
+                    let line = Paragraph::new(line_char).style(Style::default().fg(arrow_color));
+                    f.render_widget(line, line_area);
+                }
+            }
+        }
+        
+        // Draw label near the middle of the arrow
+        if !label.is_empty() {
+            let mid_x = (from_x + to_x) / 2;
+            let mid_y = (from_y + to_y) / 2;
+            
+            if mid_x >= area.x && mid_x < area.x + area.width && mid_y >= area.y && mid_y < area.y + area.height {
+                let label_color = if is_focused { Color::Red } else { Color::Cyan };
+                let label_area = Rect { x: mid_x, y: mid_y.saturating_sub(1), width: label.len() as u16, height: 1 };
+                let label_paragraph = Paragraph::new(label).style(Style::default().fg(label_color));
+                f.render_widget(label_paragraph, label_area);
+            }
+        }
+    }
+
+    fn draw_message_arrow(&self, f: &mut Frame, from_x: u16, to_x: u16, y: u16, description: &str, order: u64, is_focused: bool, area: Rect) {
+        // Skip if coordinates are outside the area bounds
+        if y >= area.y + area.height || y < area.y {
+            return;
+        }
+        
         let arrow_color = if is_focused { Color::Gray } else { Color::Yellow };
         let desc_color = if is_focused { Color::Gray } else { Color::Cyan };
         
@@ -968,22 +1771,32 @@ impl DiagramsScreen {
             // Self-call: draw loop arrow with proper corners
             let loop_width = 6;
             
-            // Horizontal line going right
-            for x in (from_x + 1)..(from_x + loop_width - 1) {
-                let line_area = Rect { x, y, width: 1, height: 1 };
-                let line = Paragraph::new("─").style(Style::default().fg(arrow_color));
-                f.render_widget(line, line_area);
+            // Only draw if within horizontal bounds
+            if from_x < area.x + area.width {
+                // Horizontal line going right
+                for x in (from_x + 1)..(from_x + loop_width - 1).min(area.x + area.width) {
+                    if x >= area.x && x < area.x + area.width {
+                        let line_area = Rect { x, y, width: 1, height: 1 };
+                        let line = Paragraph::new("─").style(Style::default().fg(arrow_color));
+                        f.render_widget(line, line_area);
+                    }
+                }
+                
+                // Top-right corner
+                let corner_x = from_x + loop_width - 1;
+                if corner_x >= area.x && corner_x < area.x + area.width {
+                    let corner_area = Rect { x: corner_x, y, width: 1, height: 1 };
+                    let corner = Paragraph::new("┐").style(Style::default().fg(arrow_color));
+                    f.render_widget(corner, corner_area);
+                }
+                
+                // Vertical line going down
+                if corner_x >= area.x && corner_x < area.x + area.width && y + 1 < area.y + area.height {
+                    let line_area = Rect { x: corner_x, y: y + 1, width: 1, height: 1 };
+                    let line = Paragraph::new("│").style(Style::default().fg(arrow_color));
+                    f.render_widget(line, line_area);
+                }
             }
-            
-            // Top-right corner
-            let corner_area = Rect { x: from_x + loop_width - 1, y, width: 1, height: 1 };
-            let corner = Paragraph::new("┐").style(Style::default().fg(arrow_color));
-            f.render_widget(corner, corner_area);
-            
-            // Vertical line going down
-            let line_area = Rect { x: from_x + loop_width - 1, y: y + 1, width: 1, height: 1 };
-            let line = Paragraph::new("│").style(Style::default().fg(arrow_color));
-            f.render_widget(line, line_area);
             
             // Bottom-right corner with arrow
             let corner_area = Rect { x: from_x + loop_width - 1, y: y + 2, width: 1, height: 1 };
@@ -998,79 +1811,85 @@ impl DiagramsScreen {
                 f.render_widget(line, line_area);
             }
             
-            // Draw order number and description above the outgoing line
-            if y > 0 {
-                let order_text = format!("{}:", order);
-                let full_text = if description.is_empty() {
-                    order_text
-                } else {
-                    format!("{} {}", order_text, description)
-                };
-                
-                let desc_width = full_text.len().min(25) as u16;
-                let desc_area = Rect {
-                    x: from_x + 1,
-                    y: y - 1,
-                    width: desc_width,
-                    height: 1,
-                };
-                
-                let desc_text = if full_text.len() > 25 {
-                    format!("{}...", &full_text[..22])
-                } else {
-                    full_text
-                };
-                
-                let desc_paragraph = Paragraph::new(desc_text)
-                    .style(Style::default().fg(desc_color));
-                f.render_widget(desc_paragraph, desc_area);
+            // Draw order number and description above the loop arrow
+            let order_text = format!("{}:", order);
+            let full_text = if description.is_empty() {
+                order_text
+            } else {
+                format!("{} {}", order_text, description)
+            };
+            
+            // Split long text into multiple lines
+            let max_width = 30;
+            let lines = self.split_text_into_lines(&full_text, max_width);
+            
+            for (line_idx, line) in lines.iter().enumerate() {
+                let desc_y = y.saturating_sub(lines.len() as u16).saturating_add(line_idx as u16);
+                if desc_y < area.y + area.height {
+                    let desc_area = Rect {
+                        x: from_x + 1,
+                        y: desc_y,
+                        width: line.len().min(max_width) as u16,
+                        height: 1,
+                    };
+                    
+                    let desc_paragraph = Paragraph::new(line.clone())
+                        .style(Style::default().fg(desc_color));
+                    f.render_widget(desc_paragraph, desc_area);
+                }
             }
         } else {
             // Regular arrow between different objects
-            let (start_x, end_x, arrow_char) = if from_x < to_x {
-                (from_x, to_x, ">")
+            let (start_x, end_x) = if from_x < to_x {
+                (from_x, to_x)
             } else {
-                (to_x, from_x, "<")
+                (to_x, from_x)
             };
             
             // Draw horizontal line
             for x in start_x..=end_x {
                 let line_area = Rect { x, y, width: 1, height: 1 };
-                let line_char = if x == end_x { arrow_char } else { "─" };
+                let line_char = if from_x < to_x && x == end_x {
+                    ">" // Right arrow at end
+                } else if from_x > to_x && x == start_x {
+                    "<" // Left arrow at start
+                } else {
+                    "─" // Line segment
+                };
                 let line = Paragraph::new(line_char).style(Style::default().fg(arrow_color));
                 f.render_widget(line, line_area);
             }
             
             // Draw order number and description above the arrow
-            if y > 0 {
-                let order_text = format!("{}:", order);
-                let full_text = if description.is_empty() {
-                    order_text
-                } else {
-                    format!("{} {}", order_text, description)
-                };
-                
-                let desc_x = (start_x + end_x) / 2;
-                let desc_width = full_text.len().min(25) as u16;
-                let desc_start_x = desc_x.saturating_sub(desc_width / 2);
-                
-                let desc_area = Rect {
-                    x: desc_start_x,
-                    y: y - 1,
-                    width: desc_width,
-                    height: 1,
-                };
-                
-                let desc_text = if full_text.len() > 25 {
-                    format!("{}...", &full_text[..22])
-                } else {
-                    full_text
-                };
-                
-                let desc_paragraph = Paragraph::new(desc_text)
-                    .style(Style::default().fg(desc_color))
-                    .alignment(Alignment::Center);
-                f.render_widget(desc_paragraph, desc_area);
+            let order_text = format!("{}:", order);
+            let full_text = if description.is_empty() {
+                order_text
+            } else {
+                format!("{} {}", order_text, description)
+            };
+            
+            // Split long text into multiple lines
+            let max_width = 30;
+            let lines = self.split_text_into_lines(&full_text, max_width);
+            
+            let desc_x = (start_x + end_x) / 2;
+            
+            for (line_idx, line) in lines.iter().enumerate() {
+                let desc_y = y.saturating_sub(lines.len() as u16).saturating_add(line_idx as u16);
+                if desc_y < area.y + area.height {
+                    let desc_start_x = desc_x.saturating_sub(line.len() as u16 / 2);
+                    let desc_area = Rect {
+                        x: desc_start_x,
+                        y: desc_y,
+                        width: line.len().min(max_width) as u16,
+                        height: 1,
+                    };
+                    
+                    let desc_paragraph = Paragraph::new(line.clone())
+                        .style(Style::default().fg(desc_color))
+                        .alignment(Alignment::Center);
+                    f.render_widget(desc_paragraph, desc_area);
+                }
             }
         }
     }
@@ -1086,9 +1905,15 @@ impl DiagramsScreen {
             match obj_type {
                 "ms" => Color::Blue,
                 "lambda" => Color::Rgb(255, 165, 0), // Orange
-                "db" => Color::Green,
+                "db-sql" => Color::Green,
                 "mobile" => Color::Magenta,
                 "bff" => Color::Rgb(139, 69, 19), // Brown
+                "external" => Color::Cyan,
+                "apigw" => Color::Red,
+                "db-nosql" => Color::LightGreen,
+                "db-redis" => Color::Yellow,
+                "sns" => Color::LightBlue,
+                "sqs" => Color::LightRed,
                 _ => Color::White,
             }
         };
@@ -1170,8 +1995,56 @@ impl DiagramsScreen {
         Vec::new()
     }
 
+    fn load_diagram_states(&self) -> Vec<serde_json::Value> {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(states) = diagram["states"].as_array() {
+                    return states.clone();
+                }
+            }
+        }
+        
+        Vec::new()
+    }
+
+    fn load_diagram_transitions(&self) -> Vec<serde_json::Value> {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(transitions) = diagram["transitions"].as_array() {
+                    return transitions.clone();
+                }
+            }
+        }
+        
+        Vec::new()
+    }
+
+    fn get_diagram_type(&self) -> String {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(diagram_type) = diagram["type"].as_str() {
+                    return diagram_type.to_string();
+                }
+            }
+        }
+        
+        "sequence".to_string()
+    }
+
     fn draw_options_popup(&self, f: &mut Frame) {
-        let options = vec!["N: New", "L: Load"];
+        let options = vec!["N: New", "L: Load", "D: Delete"];
         let max_option_width = options.iter().map(|s| s.len()).max().unwrap_or(0);
         let popup_width = (max_option_width + 4).max(20) as u16;
         let popup_height = (options.len() + 4) as u16;
@@ -1462,19 +2335,213 @@ impl DiagramsScreen {
         f.render_widget(paragraph, popup_area);
     }
 
+    fn draw_add_state_popup(&self, f: &mut Frame) {
+        let popup_width = 45;
+        let popup_height = 12;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width - popup_width) / 2,
+            y: (size.height - popup_height) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Blue))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(
+                if self.is_editing_state { " Edit State " } else { " Add State " }, 
+                Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)
+            ));
+
+        let checkbox = if self.state_is_final { "[X]" } else { "[ ]" };
+        let selected_place = &self.state_places[self.state_selected_place];
+
+        let content = Text::from(vec![
+            Line::from(""),
+            Line::from(Span::styled("State Name:", Style::default().fg(Color::White))),
+            Line::from(Span::styled(
+                format!("> {}", self.state_name_input),
+                Style::default().fg(Color::Yellow)
+            )),
+            Line::from(""),
+            Line::from(Span::styled(format!("{} Final State (Tab to toggle)", checkbox), Style::default().fg(Color::Green))),
+            Line::from(""),
+            Line::from(Span::styled("Position (j/k to change):", Style::default().fg(Color::White))),
+            Line::from(Span::styled(
+                format!("> {}", selected_place),
+                Style::default().fg(Color::Cyan)
+            )),
+            Line::from(""),
+        ]);
+
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
+    fn draw_add_transition_popup(&self, f: &mut Frame) {
+        let popup_width = 50;
+        let popup_height = 12;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width - popup_width) / 2,
+            y: (size.height - popup_height) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(
+                if self.is_editing_transition { " Edit Transition " } else { " Add Transition " }, 
+                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+            ));
+
+        let from_state = if self.selected_from_state < self.available_states.len() {
+            &self.available_states[self.selected_from_state]
+        } else {
+            "No states"
+        };
+        
+        let to_state = if self.selected_to_state < self.available_states.len() {
+            &self.available_states[self.selected_to_state]
+        } else {
+            "No states"
+        };
+
+        let content = Text::from(vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                if self.current_transition_field == 0 { "Label (Tab to switch):" } else { "Label:" },
+                if self.current_transition_field == 0 { 
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD) 
+                } else { 
+                    Style::default().fg(Color::White) 
+                }
+            )),
+            Line::from(Span::styled(
+                format!("> {}", self.transition_label_input),
+                if self.current_transition_field == 0 { 
+                    Style::default().fg(Color::Yellow) 
+                } else { 
+                    Style::default().fg(Color::Gray) 
+                }
+            )),
+            Line::from(""),
+            Line::from(Span::styled(
+                if self.current_transition_field == 1 { "From (j/k to change):" } else { "From:" },
+                if self.current_transition_field == 1 { 
+                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD) 
+                } else { 
+                    Style::default().fg(Color::White) 
+                }
+            )),
+            Line::from(Span::styled(
+                format!("> {}", from_state), 
+                if self.current_transition_field == 1 { 
+                    Style::default().fg(Color::Green) 
+                } else { 
+                    Style::default().fg(Color::Gray) 
+                }
+            )),
+            Line::from(""),
+            Line::from(Span::styled(
+                if self.current_transition_field == 2 { "To (j/k to change):" } else { "To:" },
+                if self.current_transition_field == 2 { 
+                    Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD) 
+                } else { 
+                    Style::default().fg(Color::White) 
+                }
+            )),
+            Line::from(Span::styled(
+                format!("> {}", to_state), 
+                if self.current_transition_field == 2 { 
+                    Style::default().fg(Color::Blue) 
+                } else { 
+                    Style::default().fg(Color::Gray) 
+                }
+            )),
+            Line::from(""),
+        ]);
+
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
+    fn draw_edit_type_popup(&self, f: &mut Frame) {
+        let popup_width = 30;
+        let popup_height = 8;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width - popup_width) / 2,
+            y: (size.height - popup_height) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Magenta))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Edit Mode ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)));
+
+        let options = if self.current_diagram_type == "state" {
+            vec!["State", "Transition"]
+        } else {
+            vec!["Object", "Message"]
+        };
+        
+        let mut lines = vec![Line::from("")];
+        
+        for (i, option) in options.iter().enumerate() {
+            let style = if i == self.selected_edit_type {
+                Style::default().bg(Color::Magenta).fg(Color::White)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            lines.push(Line::from(Span::styled(format!(" {}", option), style)));
+        }
+        lines.push(Line::from(""));
+
+        let content = Text::from(lines);
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
     fn create_empty_diagram_file(&self) {
         use std::fs;
         
         // Create data/diagrams directory if it doesn't exist
         let _ = fs::create_dir_all("data/diagrams");
         
-        // Create empty diagram structure
-        let empty_diagram = serde_json::json!({
-            "name": self.current_diagram_name,
-            "type": "sequence",
-            "objects": [],
-            "messages": []
-        });
+        // Create empty diagram structure based on type
+        let empty_diagram = if self.current_diagram_type == "state" {
+            serde_json::json!({
+                "name": self.current_diagram_name,
+                "type": "state",
+                "states": [],
+                "transitions": []
+            })
+        } else {
+            serde_json::json!({
+                "name": self.current_diagram_name,
+                "type": "sequence",
+                "objects": [],
+                "messages": []
+            })
+        };
         
         let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
         let _ = fs::write(file_path, serde_json::to_string_pretty(&empty_diagram).unwrap_or_default());
@@ -1512,6 +2579,208 @@ impl DiagramsScreen {
         }
     }
 
+    fn save_state_to_diagram(&mut self) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(mut diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                // Get place code (first letter before colon)
+                let place_code = self.state_places[self.state_selected_place]
+                    .split(':')
+                    .next()
+                    .unwrap_or("N")
+                    .to_string();
+                
+                if self.is_editing_state {
+                    // Update existing state
+                    if let Some(states) = diagram["states"].as_array_mut() {
+                        if self.focused_state_index < states.len() {
+                            states[self.focused_state_index]["name"] = serde_json::Value::String(self.state_name_input.clone());
+                            states[self.focused_state_index]["is_final"] = serde_json::Value::Bool(self.state_is_final);
+                            states[self.focused_state_index]["place"] = serde_json::Value::String(place_code);
+                        }
+                    }
+                } else {
+                    // Create new state
+                    let next_order = if let Some(states) = diagram["states"].as_array() {
+                        states.len() + 1
+                    } else {
+                        1
+                    };
+                    
+                    let new_state = serde_json::json!({
+                        "name": self.state_name_input,
+                        "is_final": self.state_is_final,
+                        "order": next_order,
+                        "place": place_code
+                    });
+                    
+                    if let Some(states) = diagram["states"].as_array_mut() {
+                        states.push(new_state);
+                    } else {
+                        diagram["states"] = serde_json::json!([new_state]);
+                    }
+                }
+                
+                let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+            }
+        }
+    }
+
+    fn save_transition_to_diagram(&mut self) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(mut diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                let from_state = if self.selected_from_state < self.available_states.len() {
+                    &self.available_states[self.selected_from_state]
+                } else {
+                    ""
+                };
+                
+                let to_state = if self.selected_to_state < self.available_states.len() {
+                    &self.available_states[self.selected_to_state]
+                } else {
+                    ""
+                };
+                
+                if self.is_editing_transition {
+                    // Update existing transition
+                    if let Some(transitions) = diagram["transitions"].as_array_mut() {
+                        if self.focused_transition_index < transitions.len() {
+                            transitions[self.focused_transition_index]["from"] = serde_json::Value::String(from_state.to_string());
+                            transitions[self.focused_transition_index]["to"] = serde_json::Value::String(to_state.to_string());
+                            transitions[self.focused_transition_index]["label"] = serde_json::Value::String(self.transition_label_input.clone());
+                        }
+                    }
+                } else {
+                    // Create new transition
+                    let new_transition = serde_json::json!({
+                        "from": from_state,
+                        "to": to_state,
+                        "label": self.transition_label_input
+                    });
+                    
+                    if let Some(transitions) = diagram["transitions"].as_array_mut() {
+                        transitions.push(new_transition);
+                    } else {
+                        diagram["transitions"] = serde_json::json!([new_transition]);
+                    }
+                }
+                
+                let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+            }
+        }
+    }
+
+    fn load_transition_for_edit(&mut self, transition: &serde_json::Value) {
+        self.transition_label_input = transition["label"].as_str().unwrap_or("").to_string();
+        
+        let from_name = transition["from"].as_str().unwrap_or("");
+        let to_name = transition["to"].as_str().unwrap_or("");
+        
+        self.load_available_states();
+        
+        // Find indices for from and to states
+        self.selected_from_state = self.available_states.iter()
+            .position(|name| name == from_name)
+            .unwrap_or(0);
+            
+        self.selected_to_state = self.available_states.iter()
+            .position(|name| name == to_name)
+            .unwrap_or(0);
+            
+        self.current_transition_field = 0;
+    }
+
+    fn load_state_for_edit(&mut self, state: &serde_json::Value) {
+        self.state_name_input = state["name"].as_str().unwrap_or("").to_string();
+        self.state_is_final = state["is_final"].as_bool().unwrap_or(false);
+        
+        // Find place index
+        let place = state["place"].as_str().unwrap_or("N");
+        self.state_selected_place = self.state_places.iter()
+            .position(|p| p.starts_with(place))
+            .unwrap_or(0);
+            
+        self.is_editing_state = true;
+    }
+
+    fn delete_focused_state(&mut self) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(mut diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                let mut state_name = String::new();
+                let mut states_updated = false;
+                
+                // Remove the state and get its name
+                if let Some(states) = diagram["states"].as_array_mut() {
+                    if self.focused_state_index < states.len() {
+                        state_name = states[self.focused_state_index]["name"].as_str().unwrap_or("").to_string();
+                        states.remove(self.focused_state_index);
+                        states_updated = true;
+                        
+                        // Adjust focused index if needed
+                        if self.focused_state_index >= states.len() && !states.is_empty() {
+                            self.focused_state_index = states.len() - 1;
+                        }
+                    }
+                }
+                
+                // Remove all transitions associated with this state
+                if states_updated {
+                    if let Some(transitions) = diagram["transitions"].as_array_mut() {
+                        transitions.retain(|transition| {
+                            let from = transition["from"].as_str().unwrap_or("");
+                            let to = transition["to"].as_str().unwrap_or("");
+                            from != state_name && to != state_name
+                        });
+                    }
+                    
+                    let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+                    
+                    self.notification = Some(Notification::success(
+                        format!("State '{}' and associated transitions deleted successfully", state_name)
+                    ));
+                }
+            }
+        }
+    }
+
+    fn delete_focused_transition(&mut self) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(mut diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(transitions) = diagram["transitions"].as_array_mut() {
+                    if self.focused_transition_index < transitions.len() {
+                        transitions.remove(self.focused_transition_index);
+                        
+                        // Adjust focused index if needed
+                        if self.focused_transition_index >= transitions.len() && !transitions.is_empty() {
+                            self.focused_transition_index = transitions.len() - 1;
+                        }
+                        
+                        let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+                        
+                        self.notification = Some(Notification::success(
+                            "Transition deleted successfully".to_string()
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
     fn load_available_diagrams(&mut self) {
         use std::fs;
         
@@ -1527,7 +2796,21 @@ impl DiagramsScreen {
                                 if name_str.ends_with(".json") {
                                     // Remove .json extension
                                     let diagram_name = name_str.trim_end_matches(".json").to_string();
-                                    self.available_diagrams.push(diagram_name);
+                                    
+                                    // Read the file to get the type
+                                    if let Ok(content) = fs::read_to_string(&path) {
+                                        if let Ok(diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                                            let diagram_type = diagram["type"].as_str().unwrap_or("unknown");
+                                            let display_name = format!("{} ({})", diagram_name, diagram_type);
+                                            self.available_diagrams.push(display_name);
+                                        } else {
+                                            // Fallback if JSON parsing fails
+                                            self.available_diagrams.push(format!("{} (unknown)", diagram_name));
+                                        }
+                                    } else {
+                                        // Fallback if file reading fails
+                                        self.available_diagrams.push(format!("{} (unknown)", diagram_name));
+                                    }
                                 }
                             }
                         }
@@ -1613,6 +2896,90 @@ impl DiagramsScreen {
         f.render_widget(paragraph, popup_area);
     }
 
+    fn draw_delete_popup(&self, f: &mut Frame) {
+        if self.available_diagrams.is_empty() {
+            // Show "no diagrams" message
+            let popup_width = 30;
+            let popup_height = 5;
+            
+            let size = f.size();
+            let popup_area = Rect {
+                x: (size.width.saturating_sub(popup_width)) / 2,
+                y: (size.height.saturating_sub(popup_height)) / 2,
+                width: popup_width,
+                height: popup_height,
+            };
+
+            f.render_widget(Clear, popup_area);
+
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Red))
+                .border_type(ratatui::widgets::BorderType::Thick)
+                .title(Span::styled(" Delete Diagram ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)));
+
+            let content = Text::from(vec![
+                Line::from(""),
+                Line::from(Span::styled("No diagrams found", Style::default().fg(Color::White))),
+                Line::from(""),
+            ]);
+
+            let paragraph = Paragraph::new(content).alignment(Alignment::Center).block(block);
+            f.render_widget(paragraph, popup_area);
+            return;
+        }
+
+        // Calculate popup size based on content
+        let max_name_len = self.available_diagrams.iter().map(|s| s.len()).max().unwrap_or(0);
+        let popup_width = (max_name_len + 6).max(25) as u16; // +6 for padding and selection indicator
+        let popup_height = (self.available_diagrams.len() + 4).min(15) as u16; // Max 15 lines
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width.saturating_sub(popup_width)) / 2,
+            y: (size.height.saturating_sub(popup_height)) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Red))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Delete Diagram ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)));
+
+        let mut lines = vec![Line::from("")];
+        for (i, diagram_name) in self.available_diagrams.iter().enumerate() {
+            let style = if i == self.selected_diagram {
+                Style::default().bg(Color::Red).fg(Color::White)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            
+            lines.push(Line::from(Span::styled(
+                format!(" {}", diagram_name),
+                style
+            )));
+        }
+        lines.push(Line::from(""));
+
+        let content = Text::from(lines);
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
+    fn draw_notification(&mut self, f: &mut Frame, area: ratatui::layout::Rect) {
+        if let Some(ref notification) = self.notification {
+            if notification.is_expired() {
+                self.notification = None;
+            } else {
+                notification.draw(f, area);
+            }
+        }
+    }
+
     fn load_available_objects(&mut self) {
         self.available_objects.clear();
         let objects = self.load_diagram_objects();
@@ -1622,6 +2989,59 @@ impl DiagramsScreen {
                 self.available_objects.push(name.to_string());
             }
         }
+    }
+
+    fn load_available_states(&mut self) {
+        self.available_states.clear();
+        let states = self.load_diagram_states();
+        
+        for state in states {
+            if let Some(name) = state["name"].as_str() {
+                self.available_states.push(name.to_string());
+            }
+        }
+    }
+
+    fn delete_diagram(&mut self, diagram_name: &str) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", diagram_name);
+        if let Err(_) = fs::remove_file(&file_path) {
+            self.notification = Some(Notification::error(
+                format!("Error: Could not delete diagram '{}'", diagram_name)
+            ));
+        } else {
+            self.notification = Some(Notification::success(
+                format!("Successfully deleted diagram '{}'", diagram_name)
+            ));
+        }
+    }
+
+    fn split_text_into_lines(&self, text: &str, max_width: usize) -> Vec<String> {
+        if text.len() <= max_width {
+            return vec![text.to_string()];
+        }
+        
+        let mut lines = Vec::new();
+        let mut remaining = text;
+        
+        while remaining.len() > max_width {
+            // Try to find a space to break at
+            if let Some(space_pos) = remaining[..max_width].rfind(' ') {
+                lines.push(remaining[..space_pos].to_string());
+                remaining = &remaining[space_pos + 1..];
+            } else {
+                // No space found, break at max_width
+                lines.push(remaining[..max_width].to_string());
+                remaining = &remaining[max_width..];
+            }
+        }
+        
+        if !remaining.is_empty() {
+            lines.push(remaining.to_string());
+        }
+        
+        lines
     }
 
     fn export_diagram(&self, format: &str) -> Result<String> {
@@ -1867,26 +3287,213 @@ impl DiagramsScreen {
         f.render_widget(paragraph, popup_area);
     }
 
-    fn diagram_needs_horizontal_scroll(&self) -> bool {
+    fn prepare_reorder_objects(&mut self) {
         let objects = self.load_diagram_objects();
-        if objects.is_empty() {
-            return false;
+        if objects.len() <= 1 {
+            return;
         }
         
-        let object_width = 120;
-        let spacing = 80;
-        let total_width = objects.len() * (object_width + spacing);
+        self.reorder_items.clear();
+        for (i, obj) in objects.iter().enumerate() {
+            if i != self.focused_object_index {
+                let name = obj["name"].as_str().unwrap_or("Unknown").to_string();
+                self.reorder_items.push((name, i + 1));
+            }
+        }
         
-        // Assume typical screen width minus borders
-        total_width > 150
+        self.reorder_mode_objects = true;
+        self.selected_reorder_item = 0;
+        self.show_reorder_popup = true;
     }
 
-    fn diagram_needs_vertical_scroll(&self) -> bool {
+    fn prepare_reorder_messages(&mut self) {
+        let messages = self.load_diagram_messages();
+        if messages.len() <= 1 {
+            return;
+        }
+        
+        self.reorder_items.clear();
+        for (i, msg) in messages.iter().enumerate() {
+            if i != self.focused_message_index {
+                let desc = msg["description"].as_str().unwrap_or("Unknown").to_string();
+                let order = msg["order"].as_u64().unwrap_or(i as u64 + 1) as usize;
+                self.reorder_items.push((desc, order));
+            }
+        }
+        
+        self.reorder_mode_objects = false;
+        self.selected_reorder_item = 0;
+        self.show_reorder_popup = true;
+    }
+
+    fn reorder_objects(&self) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(mut diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(objects) = diagram["objects"].as_array_mut() {
+                    if self.focused_object_index < objects.len() && self.selected_reorder_item < self.reorder_items.len() {
+                        let target_order = self.reorder_items[self.selected_reorder_item].1;
+                        let target_index = target_order - 1;
+                        
+                        // Swap objects
+                        if target_index < objects.len() {
+                            objects.swap(self.focused_object_index, target_index);
+                            
+                            // Update order fields
+                            for (i, obj) in objects.iter_mut().enumerate() {
+                                obj["order"] = serde_json::Value::Number(serde_json::Number::from(i + 1));
+                            }
+                            
+                            let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn reorder_messages(&self) {
+        use std::fs;
+        
+        let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
+        
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if let Ok(mut diagram) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(messages) = diagram["messages"].as_array_mut() {
+                    if self.focused_message_index < messages.len() && self.selected_reorder_item < self.reorder_items.len() {
+                        let target_order = self.reorder_items[self.selected_reorder_item].1;
+                        let target_index = target_order - 1;
+                        
+                        // Swap messages
+                        if target_index < messages.len() {
+                            messages.swap(self.focused_message_index, target_index);
+                            
+                            // Update order fields
+                            for (i, msg) in messages.iter_mut().enumerate() {
+                                msg["order"] = serde_json::Value::Number(serde_json::Number::from(i + 1));
+                            }
+                            
+                            let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn draw_reorder_popup(&self, f: &mut Frame) {
+        let popup_width = 60;
+        let popup_height = (self.reorder_items.len() + 4).min(20) as u16;
+        
+        let size = f.size();
+        let popup_area = Rect {
+            x: (size.width.saturating_sub(popup_width)) / 2,
+            y: (size.height.saturating_sub(popup_height)) / 2,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        f.render_widget(Clear, popup_area);
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan))
+            .border_type(ratatui::widgets::BorderType::Thick)
+            .title(Span::styled(" Reorder - Select Position ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+
+        let mut lines = vec![Line::from("")];
+        for (i, (name, order)) in self.reorder_items.iter().enumerate() {
+            let style = if i == self.selected_reorder_item {
+                Style::default().bg(Color::Yellow).fg(Color::Black)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            let text = format!("  {}. {}", order, name);
+            lines.push(Line::from(Span::styled(text, style)));
+        }
+        lines.push(Line::from(""));
+
+        let content = Text::from(lines);
+        let paragraph = Paragraph::new(content).alignment(Alignment::Left).block(block);
+        f.render_widget(paragraph, popup_area);
+    }
+
+    fn calculate_diagram_dimensions(&self) -> (usize, usize) {
+        let objects = self.load_diagram_objects();
         let messages = self.load_diagram_messages();
         
-        // Assume typical screen height minus borders and headers
-        let message_height = messages.len() * 40;
-        message_height > 300
+        // Calculate width considering both objects and message text
+        let object_width = 120;
+        let spacing = 80;
+        let base_width = if objects.is_empty() { 
+            400 
+        } else { 
+            objects.len() * (object_width + spacing)
+        };
+        
+        // Check if messages need extra width (for long descriptions)
+        let mut max_message_width = 0;
+        for message in &messages {
+            let description = message["description"].as_str().unwrap_or("");
+            let order = message["order"].as_u64().unwrap_or(1);
+            let full_text = format!("{}. {}", order, description);
+            max_message_width = max_message_width.max(full_text.len() * 8); // Approximate character width
+        }
+        
+        let diagram_width = base_width.max(max_message_width) + 100; // Added margin
+        
+        // Calculate height dynamically based on actual message spacing
+        let mut total_height = 100; // Reduced base height
+        
+        // Each message needs more space than just the arrow spacing
+        for message in &messages {
+            let from_name = message["from"].as_str().unwrap_or("");
+            let to_name = message["to"].as_str().unwrap_or("");
+            let description = message["description"].as_str().unwrap_or("");
+            
+            // Reduced space requirements
+            let mut message_height = 8; // Reduced from 15
+            
+            // Self-call needs extra space for the loop
+            if from_name == to_name {
+                message_height += 5; // Reduced from 10
+            }
+            
+            // Add space for multi-line text
+            let lines = self.split_text_into_lines(&format!("{}. {}", message["order"].as_u64().unwrap_or(1), description), 30);
+            message_height += lines.len() * 2; // Reduced from 3
+            
+            total_height += message_height;
+        }
+        
+        total_height += 50; // Much smaller bottom margin
+        
+        (diagram_width, total_height)
+    }
+
+    fn update_scroll_bounds(&mut self, area: Rect) {
+        // Store window dimensions
+        self.window_width = area.width;
+        self.window_height = area.height;
+        
+        // Get accurate diagram dimensions
+        let (diagram_width, diagram_height) = self.calculate_diagram_dimensions();
+        
+        // Calculate max scroll offsets
+        self.max_scroll_x = if diagram_width > area.width as usize {
+            (diagram_width - area.width as usize) as i32
+        } else { 0 };
+        
+        self.max_scroll_y = if diagram_height > area.height as usize {
+            (diagram_height - area.height as usize) as i32
+        } else { 0 };
+        
+        // Clamp current scroll offsets to new bounds
+        self.scroll_offset_x = self.scroll_offset_x.clamp(-self.max_scroll_x, self.max_scroll_x);
+        self.scroll_offset_y = self.scroll_offset_y.clamp(-self.max_scroll_y, self.max_scroll_y);
     }
 
     fn count_messages_for_object(&self, obj_name: &str) -> usize {
@@ -2099,7 +3706,7 @@ impl DiagramsScreen {
         }
     }
 
-    fn save_message_to_diagram(&self) {
+    fn save_message_to_diagram(&mut self) {
         use std::fs;
         
         let file_path = format!("data/diagrams/{}.json", self.current_diagram_name);
@@ -2141,6 +3748,12 @@ impl DiagramsScreen {
                 
                 // Save updated diagram
                 let _ = fs::write(file_path, serde_json::to_string_pretty(&diagram).unwrap_or_default());
+                
+                // Auto-scroll to show the new message
+                let messages = self.load_diagram_messages();
+                if messages.len() > 3 { // Only scroll if there are more than 3 messages
+                    self.scroll_offset_y = ((messages.len() - 3) * 4) as i32; // Show last few messages
+                }
             }
         }
     }

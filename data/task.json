@@ -66,17 +66,6 @@
     "alert": true
   },
   {
-    "id": "5b85c894-82fb-40ef-93f7-f0ac7b230492",
-    "name": "Revisar core-fraud-db",
-    "description": "la subida a dev esta fallando por una autenticacion en el pipeline",
-    "state": "done",
-    "priority": "critical",
-    "tag": "work",
-    "creation_date": "2025-11-17",
-    "finish_date": "2025-11-18",
-    "alert": true
-  },
-  {
     "id": "0f5ee105-de42-48a7-b94f-1580569cbf8d",
     "name": "Cambiar authorizer-lambda en py",
     "description": "cambiar testing por uat",
@@ -157,7 +146,7 @@
     "id": "895b7493-fa1c-4ec6-b90f-528e6ef46975",
     "name": "Terminar app de Drawio para Ratatui",
     "description": "Deberia estar in situ en la app",
-    "state": "block",
+    "state": "done",
     "priority": "low",
     "tag": "personal",
     "creation_date": "2025-12-06",
@@ -228,6 +217,61 @@
     "tag": "personal",
     "creation_date": "2025-12-15",
     "finish_date": "2025-12-27",
+    "alert": true
+  },
+  {
+    "id": "563833e8-e788-4b7b-8424-c507027c1ddd",
+    "name": "Agregar tareas enriquecimiento idp",
+    "description": "Agregar graficos y tareas",
+    "state": "done",
+    "priority": "medium",
+    "tag": "work",
+    "creation_date": "2025-12-18",
+    "finish_date": "2025-12-19",
+    "alert": true
+  },
+  {
+    "id": "55a24dcb-11a7-4083-9a3e-10adc3d1387a",
+    "name": "Agregar tareas sms-service",
+    "description": "subir version, mover namespace y agregar metricas, una vez que me den el OK",
+    "state": "done",
+    "priority": "medium",
+    "tag": "work",
+    "creation_date": "2025-12-18",
+    "finish_date": "2025-12-19",
+    "alert": true
+  },
+  {
+    "id": "e847dea9-3ef8-41ba-a4e3-c4a0ffc9af2b",
+    "name": "Agregar gastos en concur",
+    "description": "Hotel, desayuno y taxis",
+    "state": "done",
+    "priority": "critical",
+    "tag": "personal",
+    "creation_date": "2025-12-18",
+    "finish_date": "2025-12-19",
+    "alert": true
+  },
+  {
+    "id": "6acb35e5-ca72-4bfc-89ce-cf97b221f2de",
+    "name": "Generar mesa con idp",
+    "description": "Ver el chat con diego vega.",
+    "state": "done",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2025-12-18",
+    "finish_date": "2025-12-19",
+    "alert": true
+  },
+  {
+    "id": "04c651bf-b759-4124-85e7-b18746008712",
+    "name": "Empezar a ingestar mfa-auth-db",
+    "description": "Para la gente de data",
+    "state": "pending",
+    "priority": "medium",
+    "tag": "work",
+    "creation_date": "2025-12-19",
+    "finish_date": "2025-12-22",
     "alert": true
   }
 ]
