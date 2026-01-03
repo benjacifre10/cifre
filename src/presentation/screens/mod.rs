@@ -13,6 +13,8 @@ pub mod artifact_dependencies_screen;
 pub mod artifact_endpoints_screen;
 pub mod diagrams_screen;
 pub mod miscellany_screen;
+pub mod bills_screen;
+pub mod investments_screen;
 
 use anyhow::Result; // Asegúrate de que Result esté importado
 use crossterm::event::KeyEvent; // ¡Importar KeyEvent!
@@ -36,6 +38,8 @@ pub enum AllScreens {
     ArtifactEndpoints(artifact_endpoints_screen::ArtifactEndpointsScreen),
     Diagrams(diagrams_screen::DiagramsScreen),
     Miscellany(miscellany_screen::MiscellanyScreen),
+    Bills(bills_screen::BillsScreen),
+    Investments(investments_screen::InvestmentsScreen),
 }
 
 impl Screen for AllScreens {
@@ -54,6 +58,8 @@ impl Screen for AllScreens {
             AllScreens::ArtifactEndpoints(s) => s.handle_key_event(key),
             AllScreens::Diagrams(s) => s.handle_key_event(key),
             AllScreens::Miscellany(s) => s.handle_key_event(key),
+            AllScreens::Bills(s) => s.handle_key_event(key),
+            AllScreens::Investments(s) => s.handle_key_event(key),
         }
     }
 
@@ -72,6 +78,8 @@ impl Screen for AllScreens {
             AllScreens::ArtifactEndpoints(s) => s.draw(f, context),
             AllScreens::Diagrams(s) => s.draw(f, context),
             AllScreens::Miscellany(s) => s.draw(f, context),
+            AllScreens::Bills(s) => s.draw(f, context),
+            AllScreens::Investments(s) => s.draw(f, context),
         }
     }
 }

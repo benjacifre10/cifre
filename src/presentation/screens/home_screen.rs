@@ -17,9 +17,11 @@ pub struct HomeScreen {
     notifications_focused: bool,
     tools_focused: bool,
     documentation_focused: bool,
+    finances_focused: bool,
     selected_item: usize,
     selected_tool: usize,
     selected_doc: usize,
+    selected_finance: usize,
     show_notifications_popup: bool,
     show_options_popup: bool,
     show_harlequin_popup: bool,
@@ -48,9 +50,11 @@ impl HomeScreen {
             notifications_focused: false,
             tools_focused: false,
             documentation_focused: false,
+            finances_focused: false,
             selected_item: 0,
             selected_tool: 0,
             selected_doc: 0,
+            selected_finance: 0,
             show_notifications_popup: false,
             show_options_popup: false,
             show_harlequin_popup: false,
@@ -74,9 +78,11 @@ impl HomeScreen {
             notifications_focused: false,
             tools_focused: false,
             documentation_focused: false,
+            finances_focused: false,
             selected_item: 0,
             selected_tool: 0,
             selected_doc: 0,
+            selected_finance: 0,
             show_notifications_popup: false,
             show_options_popup: false,
             show_harlequin_popup: false,
@@ -220,7 +226,7 @@ impl HomeScreen {
         
         let size = f.size();
         let popup_width = 30;
-        let popup_height = 10;
+        let popup_height = 12;
         let popup_x = (size.width.saturating_sub(popup_width)) / 2;
         let popup_y = (size.height.saturating_sub(popup_height)) / 2;
         
@@ -247,6 +253,8 @@ impl HomeScreen {
             Line::from(Span::styled("🔧 T: Tools", Style::default().fg(Color::Green))),
             Line::from(""),
             Line::from(Span::styled("📚 D: Docs", Style::default().fg(Color::Blue))),
+            Line::from(""),
+            Line::from(Span::styled("💰 F: Finances", Style::default().fg(Color::Yellow))),
             Line::from(""),
         ]);
 
@@ -506,6 +514,42 @@ impl HomeScreen {
         f.render_widget(paragraph, area);
     }
 
+    fn draw_finances_block(&self, f: &mut Frame, area: Rect) {
+        let (title_style, border_style) = if self.finances_focused {
+            (Style::default().fg(Color::Blue), Style::default().fg(Color::Blue))
+        } else {
+            (Style::default().fg(Color::Green), Style::default())
+        };
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(border_style)
+            .title(Span::styled(" 💰 Finances ", title_style));
+
+        let bills_style = if self.finances_focused && self.selected_finance == 0 {
+            Style::default().bg(Color::Yellow).fg(Color::Black)
+        } else {
+            Style::default()
+        };
+
+        let investments_style = if self.finances_focused && self.selected_finance == 1 {
+            Style::default().bg(Color::Yellow).fg(Color::Black)
+        } else {
+            Style::default()
+        };
+
+        let content = Text::from(vec![
+            Line::from(Span::styled(" Bills ", bills_style)),
+            Line::from(Span::styled(" Investments ", investments_style)),
+        ]);
+
+        let paragraph = Paragraph::new(content)
+            .alignment(Alignment::Left)
+            .block(block);
+
+        f.render_widget(paragraph, area);
+    }
+
     fn draw_tools_block(&self, f: &mut Frame, area: Rect) {
         let (title_style, border_style) = if self.tools_focused {
             (Style::default().fg(Color::Blue), Style::default().fg(Color::Blue))
@@ -751,7 +795,18 @@ impl Screen for HomeScreen {
                     self.checks_focused = false;
                     self.notifications_focused = false;
                     self.tools_focused = false;
+                    self.finances_focused = false;
                     self.selected_doc = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                crossterm::event::KeyCode::Char('f') | crossterm::event::KeyCode::Char('F') => {
+                    self.show_options_popup = false;
+                    self.finances_focused = true;
+                    self.checks_focused = false;
+                    self.notifications_focused = false;
+                    self.tools_focused = false;
+                    self.documentation_focused = false;
+                    self.selected_finance = 0;
                     Ok(ScreenOutcome::Continue)
                 }
                 _ => Ok(ScreenOutcome::Continue),
@@ -793,7 +848,17 @@ impl Screen for HomeScreen {
                     self.checks_focused = false;
                     self.notifications_focused = false;
                     self.tools_focused = false;
+                    self.finances_focused = false;
                     self.selected_doc = 0;
+                    Ok(ScreenOutcome::Continue)
+                }
+                crossterm::event::KeyCode::Char('f') | crossterm::event::KeyCode::Char('F') => {
+                    self.finances_focused = true;
+                    self.checks_focused = false;
+                    self.notifications_focused = false;
+                    self.tools_focused = false;
+                    self.documentation_focused = false;
+                    self.selected_finance = 0;
                     Ok(ScreenOutcome::Continue)
                 }
                 crossterm::event::KeyCode::Char('j') => {
@@ -803,6 +868,8 @@ impl Screen for HomeScreen {
                         self.selected_tool += 1;
                     } else if self.documentation_focused && self.selected_doc < 3 {
                         self.selected_doc += 1;
+                    } else if self.finances_focused && self.selected_finance < 1 {
+                        self.selected_finance += 1;
                     }
                     Ok(ScreenOutcome::Continue)
                 }
@@ -813,6 +880,8 @@ impl Screen for HomeScreen {
                         self.selected_tool -= 1;
                     } else if self.documentation_focused && self.selected_doc > 0 {
                         self.selected_doc -= 1;
+                    } else if self.finances_focused && self.selected_finance > 0 {
+                        self.selected_finance -= 1;
                     }
                     Ok(ScreenOutcome::Continue)
                 }
@@ -870,6 +939,12 @@ impl Screen for HomeScreen {
                         }
                         
                         Ok(ScreenOutcome::Continue)
+                    } else if self.finances_focused {
+                        match self.selected_finance {
+                            0 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingBills)),
+                            1 => Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingInvestments)),
+                            _ => Ok(ScreenOutcome::Continue),
+                        }
                     } else {
                         Ok(ScreenOutcome::Continue)
                     }
@@ -878,11 +953,12 @@ impl Screen for HomeScreen {
                     Ok(ScreenOutcome::ChangeState(crate::presentation::tui::AppState::ViewingSettings))
                 }
                 crossterm::event::KeyCode::Esc => {
-                    if self.checks_focused || self.notifications_focused || self.tools_focused || self.documentation_focused {
+                    if self.checks_focused || self.notifications_focused || self.tools_focused || self.documentation_focused || self.finances_focused {
                         self.checks_focused = false;
                         self.notifications_focused = false;
                         self.tools_focused = false;
                         self.documentation_focused = false;
+                        self.finances_focused = false;
                         Ok(ScreenOutcome::Continue)
                     } else {
                         Ok(ScreenOutcome::Quit)
@@ -923,6 +999,8 @@ impl Screen for HomeScreen {
                 Constraint::Length(14), // Tools
                 Constraint::Length(2), // Margen entre Tools y Documentation
                 Constraint::Length(14), // Documentation
+                Constraint::Length(2), // Margen entre Documentation y Finances
+                Constraint::Length(16), // Finances (aumentado de 14 a 16)
                 Constraint::Min(0),
                 Constraint::Length(17),
             ])
@@ -932,7 +1010,8 @@ impl Screen for HomeScreen {
         let checks_area = home_layout[0];
         let tools_area = home_layout[2];
         let documentation_area = home_layout[4];
-        let date_area = home_layout[6];
+        let finances_area = home_layout[6];
+        let date_area = home_layout[8];
 
         let checks_vertical = Layout::default()
             .direction(Direction::Vertical)
@@ -949,6 +1028,11 @@ impl Screen for HomeScreen {
             .constraints([Constraint::Length(6)])
             .split(documentation_area);
 
+        let finances_vertical = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(4)])
+            .split(finances_area);
+
         let date_vertical = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Length(4), Constraint::Length(4)])
@@ -957,6 +1041,7 @@ impl Screen for HomeScreen {
         self.draw_checks_block(f, checks_vertical[0]);
         self.draw_tools_block(f, tools_vertical[0]);
         self.draw_documentation_block(f, documentation_vertical[0]);
+        self.draw_finances_block(f, finances_vertical[0]);
         self.draw_date_block(f, date_vertical[0], context);
         self.draw_notifications_block(f, date_vertical[1]);
         self.draw_menu_block(f, menu_area);

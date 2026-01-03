@@ -12,6 +12,8 @@ use crate::presentation::screens::artifact_dependencies_screen::ArtifactDependen
 use crate::presentation::screens::artifact_endpoints_screen::ArtifactEndpointsScreen;
 use crate::presentation::screens::diagrams_screen::DiagramsScreen;
 use crate::presentation::screens::miscellany_screen::MiscellanyScreen;
+use crate::presentation::screens::bills_screen::BillsScreen;
+use crate::presentation::screens::investments_screen::InvestmentsScreen;
 
 use anyhow::{Context, Result};
 use chrono::{Local, DateTime};
@@ -48,6 +50,8 @@ pub enum AppState {
     ViewingArtifactEndpoints(String),
     ViewingDiagrams,
     ViewingMiscellany,
+    ViewingBills,
+    ViewingInvestments,
     Quit,
 }
 
@@ -121,6 +125,8 @@ impl App {
                                 AppState::ViewingArtifactEndpoints(name) => AllScreens::ArtifactEndpoints(ArtifactEndpointsScreen::new(name)),
                                 AppState::ViewingDiagrams => AllScreens::Diagrams(DiagramsScreen::new()),
                                 AppState::ViewingMiscellany => AllScreens::Miscellany(MiscellanyScreen::new()),
+                                AppState::ViewingBills => AllScreens::Bills(BillsScreen::new()),
+                                AppState::ViewingInvestments => AllScreens::Investments(InvestmentsScreen::new()),
                                 AppState::Quit => AllScreens::Home(HomeScreen::new()?),
                             };
                         },
