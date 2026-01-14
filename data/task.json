@@ -11,21 +11,10 @@
     "alert": true
   },
   {
-    "id": "29c26e7c-fa29-4d39-a74d-8699a23603a2",
-    "name": "Prender login v4",
-    "description": "Ir prendiendo cada 5% por dia",
-    "state": "done",
-    "priority": "critical",
-    "tag": "work",
-    "creation_date": "2025-11-10",
-    "finish_date": "2025-12-01",
-    "alert": true
-  },
-  {
     "id": "486b09ed-8a66-407a-8a4e-6e107845e29c",
     "name": "Generar info sobre flujo backend",
     "description": "",
-    "state": "progress",
+    "state": "done",
     "priority": "low",
     "tag": "personal",
     "creation_date": "2025-11-14",
@@ -33,22 +22,11 @@
     "alert": false
   },
   {
-    "id": "2cbbe878-4d25-4068-bf54-b17c91d11305",
-    "name": "Buscar apikey paygilant produccion",
-    "description": "ver con cs, para buscar este dato productivo, en los otros servicios (ecosistemas-transaction-",
-    "state": "done",
-    "priority": "high",
-    "tag": "work",
-    "creation_date": "2025-11-17",
-    "finish_date": "2025-12-03",
-    "alert": true
-  },
-  {
     "id": "ddaf9b1f-64a3-4d5d-a4a7-c4d9c092dbf1",
     "name": "Agregar apigw py",
     "description": "logout en todos los ambientes",
     "state": "progress",
-    "priority": "critical",
+    "priority": "high",
     "tag": "work",
     "creation_date": "2025-11-25",
     "finish_date": "2025-11-25",
@@ -66,28 +44,6 @@
     "alert": false
   },
   {
-    "id": "e88b0ec3-bab9-428b-a19d-e32ec4f1f0f7",
-    "name": "Ver con flor mariani extension session idp a 12hs",
-    "description": "avisarle para que proceda con el cambio",
-    "state": "done",
-    "priority": "critical",
-    "tag": "work",
-    "creation_date": "2025-12-02",
-    "finish_date": "2025-12-03",
-    "alert": true
-  },
-  {
-    "id": "66ec38a0-1859-4f72-99bc-33d9075883fd",
-    "name": "Documentar nueva traduccion del Core de Fraude",
-    "description": "Antes tomaba el risk_level(0 a 3) y ahora deberia tomar el enforce_challenge y el enforce_block",
-    "state": "done",
-    "priority": "critical",
-    "tag": "work",
-    "creation_date": "2025-12-06",
-    "finish_date": "2025-12-09",
-    "alert": true
-  },
-  {
     "id": "895b7493-fa1c-4ec6-b90f-528e6ef46975",
     "name": "Terminar app de Drawio para Ratatui",
     "description": "Deberia estar in situ en la app",
@@ -102,7 +58,7 @@
     "id": "d183b3ca-cf74-4714-a7e7-c1c1752b2603",
     "name": "Terminar app de ratatui para mongodb",
     "description": "Esta aparte y la tengo que completar con creditos del browser",
-    "state": "progress",
+    "state": "block",
     "priority": "low",
     "tag": "personal",
     "creation_date": "2025-12-06",
@@ -119,28 +75,6 @@
     "creation_date": "2025-12-06",
     "finish_date": "2025-12-20",
     "alert": false
-  },
-  {
-    "id": "5ffd7931-0b19-4e5f-acd7-e3ac05b83625",
-    "name": "Agregar documento para defectos de la casa",
-    "description": "En drive. defecto y foto. pedir mail para enviar. imprimir y hacer firmar.",
-    "state": "done",
-    "priority": "high",
-    "tag": "personal",
-    "creation_date": "2025-12-06",
-    "finish_date": "2025-12-15",
-    "alert": true
-  },
-  {
-    "id": "d5303780-b3c6-40a9-aa1c-2d2e0f2bad63",
-    "name": "averiguar fletes para mudanza",
-    "description": "Hacer un cuadro comparativo",
-    "state": "done",
-    "priority": "high",
-    "tag": "personal",
-    "creation_date": "2025-12-06",
-    "finish_date": "2025-12-08",
-    "alert": true
   },
   {
     "id": "cb09efaa-3ebb-4658-91a6-05dbe5127237",
@@ -217,6 +151,61 @@
     "tag": "work",
     "creation_date": "2025-12-19",
     "finish_date": "2025-12-22",
+    "alert": true
+  },
+  {
+    "id": "4a75de0f-684b-4b85-8857-e58e3c59b7ef",
+    "name": "Agregar docu de cierre de sesión",
+    "description": "agregar sobre la data que ya agrego andre",
+    "state": "done",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2026-01-13",
+    "finish_date": "2026-01-13",
+    "alert": true
+  },
+  {
+    "id": "127e9a68-634e-4906-8567-2c113920050c",
+    "name": "Subir servicios a prod",
+    "description": "bff-auth, authority-service, core-fraud-service",
+    "state": "done",
+    "priority": "critical",
+    "tag": "work",
+    "creation_date": "2026-01-13",
+    "finish_date": "2026-01-13",
+    "alert": true
+  },
+  {
+    "id": "e2d5bdd3-a36f-4b23-b33b-1a1d3eda23a1",
+    "name": "Generar diagrama login py",
+    "description": "Ya iniciado sobre docu de jose de py",
+    "state": "progress",
+    "priority": "high",
+    "tag": "work",
+    "creation_date": "2026-01-13",
+    "finish_date": "2026-01-13",
+    "alert": true
+  },
+  {
+    "id": "825a2f34-cc05-42ca-9672-b7ff95f0aeb2",
+    "name": "Hablar y organizar reu con Martin Sanchez",
+    "description": "Temas: unlock-db y agregar usuarios faltantes en authority-db que esten en idp",
+    "state": "pending",
+    "priority": "medium",
+    "tag": "work",
+    "creation_date": "2026-01-14",
+    "finish_date": "2026-01-15",
+    "alert": true
+  },
+  {
+    "id": "bf2077b1-4ea8-4028-afae-8706b082aecd",
+    "name": "Armar docu de apigw a nlb y alb",
+    "description": "Esta armada la carpeta en confluence",
+    "state": "pending",
+    "priority": "low",
+    "tag": "work",
+    "creation_date": "2026-01-14",
+    "finish_date": "2026-01-31",
     "alert": true
   }
 ]

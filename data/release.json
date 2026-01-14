@@ -137,32 +137,49 @@
       "date_finish": "2026-01-13",
       "artifacts": [
         {
-          "artifact_id": "f0b8b516-9f58-4a8c-b7d5-c3f5b2784ff6",
-          "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
-          "stage_id": "4882c848-c899-409d-be9f-3b764acbcf6c",
-          "version": "1.4.0",
-          "order": 4
-        },
-        {
           "artifact_id": "d1713a0f-4e81-4498-a21a-60e971abe1d1",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
-          "stage_id": "a043c588-630e-4be1-b628-4e260f03bc95",
-          "version": "2.25.0",
+          "stage_id": "4882c848-c899-409d-be9f-3b764acbcf6c",
+          "version": "2.27.0",
           "order": 2
         },
         {
           "artifact_id": "f6ebeeea-a88d-4773-92f2-82ee968e2688",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
-          "stage_id": "a043c588-630e-4be1-b628-4e260f03bc95",
-          "version": "0.7.0",
+          "stage_id": "4882c848-c899-409d-be9f-3b764acbcf6c",
+          "version": "0.7.2",
           "order": 3
         },
         {
           "artifact_id": "d2a3fbfd-a4fd-4dd0-8a97-466e493af2ab",
           "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
-          "stage_id": "a043c588-630e-4be1-b628-4e260f03bc95",
+          "stage_id": "4882c848-c899-409d-be9f-3b764acbcf6c",
           "version": "2.2.120",
           "order": 1
+        }
+      ]
+    },
+    {
+      "id": "017b4859-aa8a-4595-96c2-7c17bf454140",
+      "name": "Release 1",
+      "year": 2026,
+      "date_init": "2026-01-13",
+      "date_qa": "2026-01-20",
+      "date_finish": "2026-01-26",
+      "artifacts": [
+        {
+          "artifact_id": "d1713a0f-4e81-4498-a21a-60e971abe1d1",
+          "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
+          "stage_id": "244f483b-1128-4097-9058-a4a5d37fd3d5",
+          "version": "2.28.0",
+          "order": 1
+        },
+        {
+          "artifact_id": "f6ebeeea-a88d-4773-92f2-82ee968e2688",
+          "country_id": "818f2364-57d3-4c5d-8b20-2e40989e83b6",
+          "stage_id": "244f483b-1128-4097-9058-a4a5d37fd3d5",
+          "version": "0.7.3",
+          "order": 2
         }
       ]
     }
