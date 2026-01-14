@@ -10,7 +10,7 @@
     },
     {
       "id": 3,
-      "name": "db-sql"
+      "name": "db_sql"
     },
     {
       "id": 4,
@@ -22,35 +22,35 @@
     },
     {
       "id": 6,
-      "name": "external"
+      "name": "db_nosql"
     },
     {
       "id": 7,
-      "name": "apigw"
+      "name": "db_redis"
     },
     {
       "id": 8,
-      "name": "db-nosql"
+      "name": "ext_api"
     },
     {
       "id": 9,
-      "name": "db-redis"
+      "name": "apigw"
     },
     {
       "id": 10,
-      "name": "sns"
+      "name": "nlb"
     },
     {
       "id": 11,
-      "name": "sqs"
-    }
+      "name": "alb"
+    },
     {
       "id": 12,
-      "name": "nlb"
-    }
+      "name": "sqs"
+    },
     {
       "id": 13,
-      "name": "alb"
+      "name": "sns"
     }
   ]
 }
